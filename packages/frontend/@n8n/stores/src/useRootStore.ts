@@ -34,9 +34,32 @@ export type RootStoreState = {
 	binaryDataMode: 'default' | 'filesystem' | 's3' | 'database';
 };
 
+// Helper function to get a valid base URL with fallbacks
+function getBaseUrl(): string {
+	const envUrl = VUE_APP_URL_BASE_API;
+	const windowApiUrl = window.__API_BASE_URL__;
+	const windowBasePath = window.BASE_PATH;
+
+	// Try each option in order
+	const url = envUrl ?? windowApiUrl ?? windowBasePath;
+
+	// If we have a valid URL, return it
+	if (url && url.trim() !== '') {
+		return url;
+	}
+
+	// Fallback: use current origin if available (for browser environments)
+	if (typeof window !== 'undefined' && window.location) {
+		return window.location.origin;
+	}
+
+	// Last resort: use relative path
+	return '/';
+}
+
 export const useRootStore = defineStore(STORES.ROOT, () => {
 	const state = ref<RootStoreState>({
-		baseUrl: VUE_APP_URL_BASE_API ?? window.__API_BASE_URL__ ?? window.BASE_PATH,
+		baseUrl: getBaseUrl(),
 		restEndpoint: getConfigFromMetaTag('rest-endpoint') ?? 'rest',
 		defaultLocale: 'en',
 		endpointForm: 'form',
@@ -102,7 +125,17 @@ export const useRootStore = defineStore(STORES.ROOT, () => {
 
 	const OAuthCallbackUrls = computed(() => state.value.oauthCallbackUrls);
 
-	const restUrl = computed(() => `${state.value.baseUrl}${state.value.restEndpoint}`);
+	// Ensure restUrl is always a valid URL
+	const restUrl = computed(() => {
+		const base = state.value.baseUrl || '/';
+		const endpoint = state.value.restEndpoint || 'rest';
+
+		// Normalize base URL: remove trailing slash if present
+		const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+
+		// Construct URL with proper separator
+		return `${normalizedBase}/${endpoint}`;
+	});
 
 	const executionTimeout = computed(() => state.value.executionTimeout);
 

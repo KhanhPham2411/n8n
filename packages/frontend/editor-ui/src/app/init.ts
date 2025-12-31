@@ -70,14 +70,20 @@ export async function initializeCore() {
 		});
 	}
 
+	// Only initialize SSO store if settings were successfully loaded
+	// Provide default empty config if settings.sso is undefined
 	ssoStore.initialize({
 		authenticationMethod: settingsStore.userManagement
 			.authenticationMethod as UserManagementAuthenticationMethod,
-		config: settingsStore.settings.sso,
+		config: settingsStore.settings.sso ?? {
+			ldap: undefined,
+			saml: undefined,
+			oidc: undefined,
+		},
 		features: {
-			saml: settingsStore.isEnterpriseFeatureEnabled[EnterpriseEditionFeature.Saml],
-			ldap: settingsStore.isEnterpriseFeatureEnabled[EnterpriseEditionFeature.Ldap],
-			oidc: settingsStore.isEnterpriseFeatureEnabled[EnterpriseEditionFeature.Oidc],
+			saml: settingsStore.isEnterpriseFeatureEnabled[EnterpriseEditionFeature.Saml] ?? false,
+			ldap: settingsStore.isEnterpriseFeatureEnabled[EnterpriseEditionFeature.Ldap] ?? false,
+			oidc: settingsStore.isEnterpriseFeatureEnabled[EnterpriseEditionFeature.Oidc] ?? false,
 		},
 	});
 

@@ -7,6 +7,7 @@ import svgLoader from 'vite-svg-loader';
 import istanbul from 'vite-plugin-istanbul';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { codecovVitePlugin } from '@codecov/vite-plugin';
+import { cpSync, existsSync, mkdirSync } from 'fs';
 
 import { vitestConfig } from '@n8n/vitest-config/frontend';
 import icons from 'unplugin-icons/vite';
@@ -23,6 +24,8 @@ const { NODE_ENV } = process.env;
 const browsers = browserslist.loadConfig({ path: process.cwd() });
 
 const packagesDir = resolve(__dirname, '..', '..');
+const rootDir = resolve(__dirname, '..', '..', '..', '..');
+const atomVscodeDistDir = resolve(rootDir, 'n8n-atom-vscode', 'dist', 'editor-ui');
 
 const alias = [
 	{ find: '@', replacement: resolve(__dirname, 'src') },
@@ -194,6 +197,26 @@ const plugins: UserConfig['plugins'] = [
 				}),
 			]
 		: []),
+	{
+		name: 'copy-to-atom-vscode',
+		closeBundle() {
+			// Only copy during release builds
+			// if (release) {
+				const distDir = resolve(__dirname, 'dist');
+				const indexHtml = resolve(distDir, 'index.html');
+				// Only copy if build was successful (index.html exists)
+				if (existsSync(distDir) && existsSync(indexHtml)) {
+					// Ensure target directory exists
+					if (!existsSync(atomVscodeDistDir)) {
+						mkdirSync(atomVscodeDistDir, { recursive: true });
+					}
+					// Copy dist folder to n8n-atom-vscode/dist/editor-ui
+					cpSync(distDir, atomVscodeDistDir, { recursive: true, force: true });
+					console.log(`✓ Copied release build output to ${atomVscodeDistDir}`);
+				}
+			// }
+		},
+	},
 ];
 
 const target = browserslistToEsbuild(browsers);

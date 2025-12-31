@@ -1,8 +1,8 @@
 import * as Comlink from 'comlink';
 import type { RunDataWorker } from '@/app/workers/run-data/worker';
 
-const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-	type: 'module',
-});
+import Worker from './worker?worker&inline';
+
+const worker = new Worker();
 
 export const runDataWorker = Comlink.wrap<RunDataWorker>(worker);

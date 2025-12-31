@@ -1,6 +1,3 @@
 [submodule ".atom8n/gist/scan-submodules-72732c0abb2cbe5b7a817247978323ba"]
 	path = .atom8n/gist/scan-submodules-72732c0abb2cbe5b7a817247978323ba
 	url = https://gist.github.com/KhanhPham2411/72732c0abb2cbe5b7a817247978323ba
-[submodule "n8n-workflows"]
-	path = n8n-workflows
-	url = https://github.com/Zie619/n8n-workflows.git

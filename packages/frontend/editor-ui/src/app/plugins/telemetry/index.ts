@@ -45,6 +45,11 @@ export class Telemetry {
 			versionCli: string;
 		},
 	) {
+		// Skip telemetry in VS Code webview (external scripts blocked by CSP)
+		if (typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:')) {
+			return;
+		}
+
 		if (!telemetrySettings.enabled || !telemetrySettings.config || this.rudderStack) return;
 
 		const {

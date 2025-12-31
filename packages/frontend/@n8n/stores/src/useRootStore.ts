@@ -50,12 +50,17 @@ function getBaseUrl(): string {
 	}
 
 	// Fallback: use current origin if available (for browser environments)
-	if (typeof window !== 'undefined' && window.location) {
+	// Skip if in VS Code webview (origin starts with 'vscode-webview:')
+	if (
+		typeof window !== 'undefined' &&
+		window.location &&
+		!window.location.origin.startsWith('vscode-webview:')
+	) {
 		return window.location.origin;
 	}
 
-	// Last resort: use relative path
-	return '/';
+	// Last resort: for VS Code webview, default to localhost
+	return 'http://localhost:5678';
 }
 
 export const useRootStore = defineStore(STORES.ROOT, () => {

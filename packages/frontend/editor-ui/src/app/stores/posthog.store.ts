@@ -118,6 +118,11 @@ export const usePostHog = defineStore('posthog', () => {
 	});
 
 	const init = (evaluatedFeatureFlags?: FeatureFlags) => {
+		// Skip PostHog in VS Code webview (external scripts blocked by CSP)
+		if (typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:')) {
+			return;
+		}
+
 		if (!window.posthog) {
 			return;
 		}

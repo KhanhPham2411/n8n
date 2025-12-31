@@ -5,7 +5,13 @@ import type {
 	RouteLocationRaw,
 	RouteLocationNormalized,
 } from 'vue-router';
-import { createRouter, createWebHistory, isNavigationFailure, RouterView } from 'vue-router';
+import {
+	createMemoryHistory,
+	createRouter,
+	createWebHistory,
+	isNavigationFailure,
+	RouterView,
+} from 'vue-router';
 import { nanoid } from 'nanoid';
 import { useExternalHooks } from '@/app/composables/useExternalHooks';
 import { useSettingsStore } from '@/app/stores/settings.store';
@@ -947,7 +953,12 @@ function withCanvasReadOnlyMeta(route: RouteRecordRaw) {
 }
 
 const router = createRouter({
-	history: createWebHistory(import.meta.env.DEV ? '/' : (window.BASE_PATH ?? '/')),
+	// Use memory history when running inside VS Code webview (window.BASE_PATH is empty string)
+	// Memory history doesn't use browser History API, completely avoiding cross-origin SecurityError
+	history:
+		typeof window !== 'undefined' && window.BASE_PATH === ''
+			? createMemoryHistory()
+			: createWebHistory(import.meta.env.DEV ? '/' : (window.BASE_PATH ?? '/')),
 	scrollBehavior(to: RouteLocationNormalized, _, savedPosition) {
 		// saved position == null means the page is NOT visited from history (back button)
 		if (savedPosition === null && to.name === VIEWS.TEMPLATES && to.meta?.setScrollPosition) {

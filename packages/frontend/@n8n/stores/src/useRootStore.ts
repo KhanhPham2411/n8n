@@ -5,8 +5,6 @@ import { computed, ref } from 'vue';
 import { STORES } from './constants';
 import { getConfigFromMetaTag } from './metaTagConfig';
 
-const { VUE_APP_URL_BASE_API } = import.meta.env;
-
 export type RootStoreState = {
 	baseUrl: string;
 	restEndpoint: string;
@@ -36,12 +34,15 @@ export type RootStoreState = {
 
 // Helper function to get a valid base URL with fallbacks
 function getBaseUrl(): string {
+	const { VUE_APP_URL_BASE_API } = import.meta.env;
 	const envUrl = VUE_APP_URL_BASE_API;
 	const windowApiUrl = window.__API_BASE_URL__;
 	const windowBasePath = window.BASE_PATH;
 
 	// Try each option in order
-	const url = envUrl ?? windowApiUrl ?? windowBasePath;
+	// Ignore envUrl if it is the unreplaced placeholder "{{BASE_PATH}}"
+	const validEnvUrl = envUrl !== '{{BASE_PATH}}' ? envUrl : undefined;
+	const url = validEnvUrl ?? windowApiUrl ?? windowBasePath;
 
 	// If we have a valid URL, return it
 	if (url && url.trim() !== '') {

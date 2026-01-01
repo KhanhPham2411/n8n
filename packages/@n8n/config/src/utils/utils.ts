@@ -7,5 +7,5 @@ import path from 'node:path';
 export function getN8nFolder(): string {
 	const homeVarName = process.platform === 'win32' ? 'USERPROFILE' : 'HOME';
 	const userHome = process.env.N8N_USER_FOLDER ?? process.env[homeVarName] ?? process.cwd();
-	return path.join(userHome, '.atom8n');
+	return path.join(userHome, '.n8n');
 }

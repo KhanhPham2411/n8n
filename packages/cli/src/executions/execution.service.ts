@@ -67,6 +67,8 @@ export const schemaGetExecutionsQueryFilter = {
 		metadata: { type: 'array', items: { $ref: '#/$defs/metadata' } },
 		startedAfter: { type: 'date-time' },
 		startedBefore: { type: 'date-time' },
+		executionTimeMin: { type: 'number' },
+		executionTimeMax: { type: 'number' },
 		annotationTags: { type: 'array', items: { type: 'string' } },
 		vote: { type: 'string' },
 		projectId: { type: 'string' },

@@ -190,6 +190,8 @@ export namespace ExecutionSummaries {
 		metadata: Array<{ key: string; value: string; exactMatch?: boolean }>;
 		startedAfter: string;
 		startedBefore: string;
+		executionTimeMin: number;
+		executionTimeMax: number;
 		annotationTags: string[]; // tag IDs
 		vote: AnnotationVote;
 		projectId: string;

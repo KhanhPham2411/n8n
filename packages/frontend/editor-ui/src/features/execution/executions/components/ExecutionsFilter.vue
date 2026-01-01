@@ -68,17 +68,24 @@ const getDefaultFilter = (): ExecutionFilterType => ({
 	annotationTags: [],
 	startDate: '',
 	endDate: '',
+	executionTimeMin: '',
+	executionTimeMax: '',
 	metadata: [{ key: '', value: '', exactMatch: false }],
 	vote: 'all',
 });
 const filter = reactive(getDefaultFilter());
 
-// Deep watcher to emit filterChanged events with debouncing for date fields only
+// Deep watcher to emit filterChanged events with debouncing for date and execution time fields
 watch(
 	filter,
 	(newFilter) => {
-		// Use debounced emit if filter contains date changes to prevent rapid API calls
-		if (newFilter.startDate || newFilter.endDate) {
+		// Use debounced emit if filter contains date or execution time changes to prevent rapid API calls
+		if (
+			newFilter.startDate ||
+			newFilter.endDate ||
+			newFilter.executionTimeMin ||
+			newFilter.executionTimeMax
+		) {
 			debouncedEmit('filterChanged', newFilter);
 		} else {
 			emit('filterChanged', newFilter);
@@ -113,6 +120,8 @@ const countSelectedFilterProps = computed(() => {
 		!isEmpty(filter.metadata),
 		!!filter.startDate,
 		!!filter.endDate,
+		filter.executionTimeMin !== '' && filter.executionTimeMin !== null,
+		filter.executionTimeMax !== '' && filter.executionTimeMax !== null,
 	].filter(Boolean);
 
 	return nonDefaultFilters.length;
@@ -278,6 +287,33 @@ onBeforeMount(() => {
 							:placeholder="locale.baseText('executionsFilter.endDate')"
 							data-test-id="executions-filter-end-date-picker"
 						/>
+					</div>
+				</div>
+				<div :class="$style.group">
+					<label for="execution-filter-execution-time">{{
+						locale.baseText('executionsFilter.executionTime')
+					}}</label>
+					<div :class="$style.dates">
+						<N8nInput
+							id="execution-filter-execution-time-min"
+							v-model="filter.executionTimeMin"
+							type="number"
+							:placeholder="locale.baseText('executionsFilter.executionTimeMin')"
+							data-test-id="executions-filter-execution-time-min-input"
+							:min="0"
+							step="0.1"
+						/>
+						<span :class="$style.divider">to</span>
+						<N8nInput
+							id="execution-filter-execution-time-max"
+							v-model="filter.executionTimeMax"
+							type="number"
+							:placeholder="locale.baseText('executionsFilter.executionTimeMax')"
+							data-test-id="executions-filter-execution-time-max-input"
+							:min="0"
+							step="0.1"
+						/>
+						<span :class="$style.executionTimeUnit">seconds</span>
 					</div>
 				</div>
 				<div v-if="isAnnotationFiltersEnabled" :class="$style.group">
@@ -459,11 +495,22 @@ onBeforeMount(() => {
 	border-radius: var(--radius);
 	white-space: nowrap;
 	align-items: center;
+
+	:deep(input[type='number']) {
+		border: 0;
+		flex: 1;
+	}
 }
 
 .divider {
 	padding: 0 var(--spacing--md);
 	line-height: 100%;
+}
+
+.executionTimeUnit {
+	padding: 0 var(--spacing--sm);
+	font-size: var(--font-size--2xs);
+	color: var(--color--text--shade-1);
 }
 
 .resetBtn {

@@ -21,6 +21,8 @@ export type ExecutionFilterType = {
 	workflowId: string;
 	startDate: string | Date;
 	endDate: string | Date;
+	executionTimeMin: number | '';
+	executionTimeMax: number | '';
 	tags: string[];
 	annotationTags: string[];
 	vote: ExecutionFilterVote;
@@ -36,6 +38,8 @@ export type ExecutionsQueryFilter = {
 	metadata?: Array<{ key: string; value: string }>;
 	startedAfter?: string;
 	startedBefore?: string;
+	executionTimeMin?: number;
+	executionTimeMax?: number;
 	annotationTags?: string[];
 	vote?: ExecutionFilterVote;
 };

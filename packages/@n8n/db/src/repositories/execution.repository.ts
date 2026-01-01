@@ -77,6 +77,8 @@ export interface IGetExecutionsQueryFilter {
 	metadata?: Array<{ key: string; value: string; exactMatch?: boolean }>;
 	startedAfter?: string;
 	startedBefore?: string;
+	executionTimeMin?: number;
+	executionTimeMax?: number;
 }
 
 function parseFiltersToQueryBuilder(
@@ -1040,6 +1042,8 @@ export class ExecutionRepository extends Repository<ExecutionEntity> {
 			workflowId,
 			startedBefore,
 			startedAfter,
+			executionTimeMin,
+			executionTimeMax,
 			metadata,
 			annotationTags,
 			vote,
@@ -1078,6 +1082,41 @@ export class ExecutionRepository extends Repository<ExecutionEntity> {
 		if (workflowId) qb.andWhere({ workflowId });
 		if (startedBefore) qb.andWhere({ startedAt: lessThanOrEqual(startedBefore) });
 		if (startedAfter) qb.andWhere({ startedAt: moreThanOrEqual(startedAfter) });
+
+		// Filter by execution time (duration in seconds)
+		if (executionTimeMin !== undefined || executionTimeMax !== undefined) {
+			const dbType = this.globalConfig.database.type;
+			let durationExpression: string;
+
+			// Calculate duration in seconds based on database type
+			if (dbType === 'postgresdb') {
+				durationExpression = 'EXTRACT(EPOCH FROM (execution.stoppedAt - execution.startedAt))';
+			} else if (dbType === 'mysqldb') {
+				durationExpression = 'TIMESTAMPDIFF(SECOND, execution.startedAt, execution.stoppedAt)';
+			} else if (dbType === 'sqlite') {
+				durationExpression =
+					'(julianday(execution.stoppedAt) - julianday(execution.startedAt)) * 86400';
+			} else {
+				// Default to PostgreSQL syntax
+				durationExpression = 'EXTRACT(EPOCH FROM (execution.stoppedAt - execution.startedAt))';
+			}
+
+			// Only filter finished executions (those with stoppedAt)
+			qb.andWhere('execution.stoppedAt IS NOT NULL');
+			qb.andWhere('execution.startedAt IS NOT NULL');
+
+			if (executionTimeMin !== undefined) {
+				qb.andWhere(`${durationExpression} >= :executionTimeMin`, {
+					executionTimeMin,
+				});
+			}
+
+			if (executionTimeMax !== undefined) {
+				qb.andWhere(`${durationExpression} <= :executionTimeMax`, {
+					executionTimeMax,
+				});
+			}
+		}
 
 		if (metadata?.length === 1) {
 			const [{ key, value, exactMatch }] = metadata;

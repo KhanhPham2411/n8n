@@ -43,6 +43,12 @@ export const parseRangeQuery = (
 			}
 
 			if (jsonFilter.waitTill) jsonFilter.waitTill = Boolean(jsonFilter.waitTill);
+			if (jsonFilter.executionTimeMin !== undefined) {
+				jsonFilter.executionTimeMin = Number(jsonFilter.executionTimeMin);
+			}
+			if (jsonFilter.executionTimeMax !== undefined) {
+				jsonFilter.executionTimeMax = Number(jsonFilter.executionTimeMax);
+			}
 
 			if (!isValid(jsonFilter)) throw new UnexpectedError('Query does not match schema');
 

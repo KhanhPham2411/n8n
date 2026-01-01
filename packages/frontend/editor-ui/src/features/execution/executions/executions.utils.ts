@@ -42,6 +42,8 @@ export function getDefaultExecutionFilters(): ExecutionFilterType {
 		status: 'all',
 		startDate: '',
 		endDate: '',
+		executionTimeMin: '',
+		executionTimeMax: '',
 		tags: [],
 		annotationTags: [],
 		metadata: [],
@@ -79,6 +81,14 @@ export const executionFilterToQueryFilter = (
 
 	if (filter.endDate) {
 		queryFilter.startedBefore = filter.endDate;
+	}
+
+	if (filter.executionTimeMin !== '' && filter.executionTimeMin !== null) {
+		queryFilter.executionTimeMin = Number(filter.executionTimeMin);
+	}
+
+	if (filter.executionTimeMax !== '' && filter.executionTimeMax !== null) {
+		queryFilter.executionTimeMax = Number(filter.executionTimeMax);
 	}
 
 	switch (filter.status as ExecutionStatus) {

@@ -1,3 +1,7 @@
+- Website: <a href="https://atom8n.com/" target="_blank">www.atom8n.com</a>
+- Support: <a href="https://github.com/KhanhPham2411/n8n/issues" target="_blank">n8n Atom Github</a>
+<img width="2114" height="1496" alt="image" src="https://github.com/user-attachments/assets/58cebcb3-8f55-47f8-9425-2e9c98e4d2ab" />
+
 ![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
 
 # n8n - Secure Workflow Automation for Technical Teams

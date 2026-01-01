@@ -200,8 +200,8 @@ export function useWorkflowSaving({
 			uiStore.removeActiveAction('workflowSaving');
 			void useExternalHooks().run('workflow.afterUpdate', { workflowData });
 
-			// Sync workflow changes to VS Code extension (.n8n file)
-			useWorkflowFileSync().syncFromWorkflowDb(workflowData);
+			// Sync workflow changes to VS Code extension (.n8n file) and actually save the file
+			useWorkflowFileSync().syncFromWorkflowDb(workflowData, true);
 
 			// Reset AI Builder edits flag only after successful save
 			builderStore.resetAiBuilderMadeEdits();
@@ -410,8 +410,8 @@ export function useWorkflowSaving({
 			uiStore.stateIsDirty = false;
 			void useExternalHooks().run('workflow.afterUpdate', { workflowData });
 
-			// Sync workflow changes to VS Code extension (.n8n file)
-			useWorkflowFileSync().syncFromWorkflowDb(workflowData);
+			// Sync workflow changes to VS Code extension (.n8n file) and actually save the file
+			useWorkflowFileSync().syncFromWorkflowDb(workflowData, true);
 
 			return workflowData.id;
 		} catch (e) {

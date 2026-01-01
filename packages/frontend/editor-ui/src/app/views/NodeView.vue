@@ -140,6 +140,7 @@ import { useExperimentalNdvStore } from '@/features/workflows/canvas/experimenta
 import { useWorkflowState } from '@/app/composables/useWorkflowState';
 import { useWorkflowSync } from '@/app/composables/useWorkflowSync';
 import { useParentFolder } from '@/features/core/folders/composables/useParentFolder';
+import { useWorkflowFileSync } from '@/app/composables/useWorkflowFileSync';
 
 import { N8nCallout, N8nCanvasThinkingPill } from '@n8n/design-system';
 
@@ -2075,6 +2076,10 @@ onMounted(() => {
 				}, 500);
 
 				emitPostMessageReady();
+
+				// Setup auto-sync for VS Code extension (apply edit on workflow changes)
+				const { setupAutoSync } = useWorkflowFileSync();
+				setupAutoSync();
 			});
 
 		void usersStore.showPersonalizationSurvey();

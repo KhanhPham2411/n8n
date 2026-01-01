@@ -21,5 +21,25 @@
 		</noscript>
 		<div id="app"></div>
 		<script type="module" src="/src/main.ts"></script>
+		<script>
+      let vscode;
+      let isGlobalKanban = true;
+      if (typeof acquireVsCodeApi !== "undefined") {
+          vscode = acquireVsCodeApi();
+          // Make it globally available
+          window.vscode = vscode;
+					console.log('vscode loaded successfully:', vscode);
+					function handleMessage(event) {
+						console.log('Received message:', {
+							data: event.data,
+							type: event.type,
+							origin: event.origin,
+							source: event.source,
+							event: event
+						});
+					}
+					window.addEventListener('message', handleMessage);
+      }
+    </script>
 	</body>
 </html>

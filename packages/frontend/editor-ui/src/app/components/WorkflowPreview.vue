@@ -52,6 +52,12 @@ const scrollX = ref(0);
 const scrollY = ref(0);
 
 const iframeSrc = computed(() => {
+	// In VS Code webview context, use the API base URL for the iframe
+	// since we need to load from the n8n backend, not from webview resources
+	const apiBaseUrl = (window as unknown as { __API_BASE_URL__?: string }).__API_BASE_URL__;
+	if (apiBaseUrl) {
+		return `${apiBaseUrl}/workflows/demo`;
+	}
 	return `${window.BASE_PATH ?? '/'}workflows/demo`;
 });
 

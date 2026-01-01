@@ -1,3 +1,5 @@
+First n8n client that manage workflow collections inside VSCode/Cursor/Antigravity
+
 - Website: <a href="https://atom8n.com/" target="_blank">www.atom8n.com</a>
 - Download the client extension: <a href="https://marketplace.visualstudio.com/items?itemName=atom8n.n8n-atom-v3" target="_blank">n8n Atom 3.0</a>
 - Support: <a href="https://github.com/KhanhPham2411/n8n/issues" target="_blank">n8n Atom Github</a>

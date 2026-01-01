@@ -22,6 +22,7 @@ import { useFocusPanelStore } from '@/app/stores/focusPanel.store';
 import { injectWorkflowState, type WorkflowState } from '@/app/composables/useWorkflowState';
 import { getResourcePermissions } from '@n8n/permissions';
 import { useBuilderStore } from '@/features/ai/assistant/builder.store';
+import { useWorkflowFileSync } from './useWorkflowFileSync';
 
 export function useWorkflowSaving({
 	router,
@@ -198,6 +199,9 @@ export function useWorkflowSaving({
 			uiStore.stateIsDirty = false;
 			uiStore.removeActiveAction('workflowSaving');
 			void useExternalHooks().run('workflow.afterUpdate', { workflowData });
+
+			// Sync workflow changes to VS Code extension (.n8n file)
+			useWorkflowFileSync().syncFromWorkflowDb(workflowData);
 
 			// Reset AI Builder edits flag only after successful save
 			builderStore.resetAiBuilderMadeEdits();
@@ -405,6 +409,9 @@ export function useWorkflowSaving({
 			uiStore.removeActiveAction('workflowSaving');
 			uiStore.stateIsDirty = false;
 			void useExternalHooks().run('workflow.afterUpdate', { workflowData });
+
+			// Sync workflow changes to VS Code extension (.n8n file)
+			useWorkflowFileSync().syncFromWorkflowDb(workflowData);
 
 			return workflowData.id;
 		} catch (e) {

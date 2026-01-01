@@ -25,7 +25,7 @@ const browsers = browserslist.loadConfig({ path: process.cwd() });
 
 const packagesDir = resolve(__dirname, '..', '..');
 const rootDir = resolve(__dirname, '..', '..', '..', '..');
-const atomVscodeDistDir = resolve(rootDir, 'n8n-atom-vscode', 'dist', 'editor-ui');
+const atomVscodeDistDir = resolve(rootDir, 'n8n-atom-vscodev3', 'dist', 'editor-ui');
 
 const alias = [
 	{ find: '@', replacement: resolve(__dirname, 'src') },

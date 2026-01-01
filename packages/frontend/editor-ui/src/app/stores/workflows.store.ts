@@ -1860,7 +1860,13 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		mimeType: string,
 	): string {
 		let restUrl = rootStore.restUrl;
-		if (restUrl.startsWith('/')) restUrl = window.location.origin + restUrl;
+		if (restUrl.startsWith('/')) {
+			// Handle VS Code webview context where window.location.origin is not a valid HTTP URL
+			const origin = window.location.origin.startsWith('vscode-webview:')
+				? 'http://localhost:5678'
+				: window.location.origin;
+			restUrl = origin + restUrl;
+		}
 		const url = new URL(`${restUrl}/binary-data`);
 		url.searchParams.append('id', binaryDataId);
 		url.searchParams.append('action', action);

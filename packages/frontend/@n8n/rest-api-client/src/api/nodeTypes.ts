@@ -21,8 +21,21 @@ import type { IRestApiContext } from '../types';
 import { makeRestApiRequest } from '../utils';
 
 async function fetchNodeTypesJsonWithRetry(url: string, retries = 5, delay = 500) {
+	// Ensure URL is absolute for VS Code webview context
+	let absoluteUrl = url;
+	if (!url.startsWith('http://') && !url.startsWith('https://')) {
+		// In VS Code webview, window.location.origin is not a valid HTTP URL
+		const origin =
+			typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:')
+				? 'http://localhost:5678'
+				: typeof window !== 'undefined'
+					? window.location?.origin
+					: 'http://localhost:5678';
+		absoluteUrl = origin + (url.startsWith('/') ? url : '/' + url);
+	}
+
 	for (let attempt = 0; attempt < retries; attempt++) {
-		const response = await axios.get(url, { withCredentials: true });
+		const response = await axios.get(absoluteUrl, { withCredentials: true });
 
 		if (typeof response.data === 'object' && response.data !== null) {
 			return response.data;
@@ -35,7 +48,9 @@ async function fetchNodeTypesJsonWithRetry(url: string, retries = 5, delay = 500
 }
 
 export async function getNodeTypes(baseUrl: string) {
-	return await fetchNodeTypesJsonWithRetry(baseUrl + 'types/nodes.json');
+	// Ensure baseUrl ends with a separator for proper path joining
+	const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+	return await fetchNodeTypesJsonWithRetry(normalizedBaseUrl + 'types/nodes.json');
 }
 
 export async function fetchCommunityNodeTypes(

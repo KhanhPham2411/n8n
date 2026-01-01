@@ -68,7 +68,11 @@ export const SentryPlugin: Plugin = {
 				}),
 				Sentry.rewriteFramesIntegration({
 					prefix: '',
-					root: window.location.origin + '/',
+					// Handle VS Code webview context where window.location.origin is not a valid HTTP URL
+					root:
+						(window.location.origin.startsWith('vscode-webview:')
+							? 'http://localhost:5678'
+							: window.location.origin) + '/',
 				}),
 			],
 			beforeSend,

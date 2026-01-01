@@ -218,7 +218,20 @@ export const useCloudPlanStore = defineStore(STORES.CLOUD_PLAN, () => {
 	const generateCloudDashboardAutoLoginLink = async (data: { redirectionPath: string }) => {
 		const searchParams = new URLSearchParams();
 
-		const adminPanelHost = new URL(window.location.href).host.split('.').slice(1).join('.');
+		// Handle VS Code webview context where window.location.href is not a valid HTTP URL
+		let adminPanelHost: string;
+		try {
+			const locationUrl = new URL(window.location.href);
+			// Skip if in VS Code webview context
+			if (locationUrl.protocol === 'vscode-webview:') {
+				return '';
+			}
+			adminPanelHost = locationUrl.host.split('.').slice(1).join('.');
+		} catch {
+			// Return empty if URL parsing fails (e.g., in non-browser environments)
+			return '';
+		}
+
 		const { code } = await getAutoLoginCode();
 		const linkUrl = `https://${adminPanelHost}/login`;
 		searchParams.set('code', code);

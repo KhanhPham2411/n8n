@@ -99,10 +99,24 @@ export async function request(config: {
 	withCredentials?: boolean;
 }) {
 	const { method, baseURL, endpoint, headers, data } = config;
+
+	// Ensure baseURL is absolute for VS Code webview context
+	let absoluteBaseURL = baseURL;
+	if (baseURL.startsWith('/')) {
+		// In VS Code webview, window.location.origin is not a valid HTTP URL
+		const origin =
+			typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:')
+				? 'http://localhost:5678'
+				: typeof window !== 'undefined'
+					? window.location?.origin
+					: 'http://localhost:5678';
+		absoluteBaseURL = origin + baseURL;
+	}
+
 	const options: AxiosRequestConfig = {
 		method,
 		url: endpoint,
-		baseURL,
+		baseURL: absoluteBaseURL,
 		headers: headers ?? {},
 	};
 	if (baseURL.startsWith('/')) {
@@ -238,6 +252,20 @@ export async function streamRequest<T extends object>(
 		onErrorOnce = undefined;
 		onError?.(e);
 	};
+
+	// Ensure baseUrl is absolute for VS Code webview context
+	let absoluteBaseUrl = context.baseUrl;
+	if (context.baseUrl.startsWith('/')) {
+		// In VS Code webview, window.location.origin is not a valid HTTP URL
+		const origin =
+			typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:')
+				? 'http://localhost:5678'
+				: typeof window !== 'undefined'
+					? window.location?.origin
+					: 'http://localhost:5678';
+		absoluteBaseUrl = origin + context.baseUrl;
+	}
+
 	const headers: Record<string, string> = {
 		'browser-id': getBrowserId(),
 		'Content-Type': 'application/json',
@@ -250,7 +278,7 @@ export async function streamRequest<T extends object>(
 		signal: abortSignal,
 	};
 	try {
-		const response = await fetch(`${context.baseUrl}${apiEndpoint}`, assistantRequest);
+		const response = await fetch(`${absoluteBaseUrl}${apiEndpoint}`, assistantRequest);
 
 		if (response.body) {
 			// Handle the streaming response

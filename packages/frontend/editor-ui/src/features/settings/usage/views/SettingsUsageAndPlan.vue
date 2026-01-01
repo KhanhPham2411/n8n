@@ -37,13 +37,15 @@ const toast = useToast();
 const documentTitle = useDocumentTitle();
 const pageRedirectionHelper = usePageRedirectionHelper();
 
-const queryParamCallback = ref<string>(() => {
-	// Handle VS Code webview context where window.location.origin is not a valid HTTP URL
-	const origin = window.location.origin.startsWith('vscode-webview:')
-		? 'http://localhost:5678'
-		: window.location.origin;
-	return `callback=${encodeURIComponent(`${origin}${window.location.pathname}`)}`;
-})();
+const queryParamCallback = ref<string>(
+	(() => {
+		// Handle VS Code webview context where window.location.origin is not a valid HTTP URL
+		const origin = window.location.origin.startsWith('vscode-webview:')
+			? 'http://localhost:5678'
+			: window.location.origin;
+		return `callback=${encodeURIComponent(`${origin}${window.location.pathname}`)}`;
+	})(),
+);
 const viewPlansUrl = computed(
 	() => `${usageStore.viewPlansUrl}&${queryParamCallback.value}&source=usage_page`,
 );

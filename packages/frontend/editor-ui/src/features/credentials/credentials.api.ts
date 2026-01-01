@@ -12,7 +12,23 @@ import axios from 'axios';
 import type { CreateCredentialDto } from '@n8n/api-types';
 
 export async function getCredentialTypes(baseUrl: string): Promise<ICredentialType[]> {
-	const { data } = await axios.get(baseUrl + 'types/credentials.json', { withCredentials: true });
+	// Ensure baseUrl is absolute for VS Code webview context
+	let absoluteUrl = baseUrl;
+	if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+		// In VS Code webview, window.location.origin is not a valid HTTP URL
+		const origin =
+			typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:')
+				? 'http://localhost:5678'
+				: typeof window !== 'undefined'
+					? window.location?.origin
+					: 'http://localhost:5678';
+		absoluteUrl = origin + (baseUrl.startsWith('/') ? baseUrl : '/' + baseUrl);
+	}
+	// Ensure absoluteUrl ends with a separator for proper path joining
+	const normalizedUrl = absoluteUrl.endsWith('/') ? absoluteUrl : absoluteUrl + '/';
+	const { data } = await axios.get(normalizedUrl + 'types/credentials.json', {
+		withCredentials: true,
+	});
 	return data;
 }
 

@@ -1,6 +1,6 @@
 node_modules
-n8n-portable
 n8n-portable*
+n8n-atom-portable*
 .DS_Store
 .tmp
 tmp

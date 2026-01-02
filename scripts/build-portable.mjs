@@ -20,7 +20,7 @@ const rootDir = isInScriptsDir ? path.join(scriptDir, '..') : scriptDir;
 // #region ===== Configuration =====
 const config = {
 	compiledAppDir: path.join(rootDir, 'compiled'),
-	portableDir: path.join(rootDir, 'n8n-portable'),
+	portableDir: path.join(rootDir, 'n8n-atom-portable'),
 	rootDir: rootDir,
 	cliDir: path.join(rootDir, 'packages', 'cli'),
 };
@@ -432,7 +432,7 @@ const packageJsonPath = path.join(config.compiledAppDir, 'package.json');
 let packageJson = null;
 if (await fs.pathExists(packageJsonPath)) {
 	packageJson = await fs.readJson(packageJsonPath);
-	packageJson.name = 'n8n-portable';
+	packageJson.name = 'n8n-atom-portable';
 	packageJson.description = 'Portable, offline-capable version of n8n';
 	await fs.writeJson(path.join(config.portableDir, 'package.json'), packageJson, { spaces: 2 });
 }
@@ -450,29 +450,29 @@ if (process.env.CREATE_ARCHIVE !== 'false') {
 		// Try to import archiver dynamically
 		const archiverModule = await import('archiver');
 		const archiver = archiverModule.default || archiverModule;
-		
+
 		echo(chalk.yellow('INFO: Creating distribution archive...'));
 		startTimer('create_archive');
-		
+
 		const packageJson = await fs.readJson(path.join(config.portableDir, 'package.json'));
-		archiveName = `n8n-portable-${packageJson?.version || 'unknown'}.zip`;
+		archiveName = `n8n-atom-portable-${packageJson?.version || 'unknown'}.zip`;
 		const archivePath = path.join(rootDir, archiveName);
-		
+
 		await new Promise((resolve, reject) => {
 			const output = createWriteStream(archivePath);
 			const archive = archiver('zip', { zlib: { level: 9 } });
-			
+
 			output.on('close', () => {
 				echo(chalk.green(`✅ Archive created: ${archiveName}`));
 				resolve();
 			});
-			
+
 			archive.on('error', (err) => reject(err));
 			archive.pipe(output);
 			archive.directory(config.portableDir, false);
 			archive.finalize();
 		});
-		
+
 		const archiveSize = (await $`du -sh ${archivePath} | cut -f1`).stdout.trim();
 		archiveTime = getElapsedTime('create_archive');
 		echo(chalk.green(`✅ Archive created in ${formatDuration(archiveTime)}: ${archiveSize}`));

@@ -113,24 +113,31 @@ export class Push extends TypedEmitter<PushEvents> {
 		if (!pushRef) {
 			connectionError = 'The query parameter "pushRef" is missing!';
 		} else if (inProduction) {
-			const validation = validateOriginHeaders(headers);
-			if (!validation.isValid) {
-				this.logger.warn(
-					'Origin header does NOT match the expected origin. ' +
-						`(Origin: "${headers.origin}" -> "${validation.originInfo?.host || 'N/A'}", ` +
-						`Expected: "${validation.rawExpectedHost}" -> "${validation.expectedHost}", ` +
-						`Protocol: "${validation.expectedProtocol}")`,
-					{
-						headers: pick(headers, [
-							'host',
-							'origin',
-							'x-forwarded-proto',
-							'x-forwarded-host',
-							'forwarded',
-						]),
-					},
-				);
-				connectionError = 'Invalid origin!';
+			// Always allow VS Code webview origins (for VS Code extensions)
+			// VS Code webviews use origins like: vscode-webview://...
+			const origin = headers.origin as string | undefined;
+			const isVSCodeWebview = origin?.startsWith('vscode-webview://');
+
+			if (!isVSCodeWebview) {
+				const validation = validateOriginHeaders(headers);
+				if (!validation.isValid) {
+					this.logger.warn(
+						'Origin header does NOT match the expected origin. ' +
+							`(Origin: "${headers.origin}" -> "${validation.originInfo?.host || 'N/A'}", ` +
+							`Expected: "${validation.rawExpectedHost}" -> "${validation.expectedHost}", ` +
+							`Protocol: "${validation.expectedProtocol}")`,
+						{
+							headers: pick(headers, [
+								'host',
+								'origin',
+								'x-forwarded-proto',
+								'x-forwarded-host',
+								'forwarded',
+							]),
+						},
+					);
+					connectionError = 'Invalid origin!';
+				}
 			}
 		}
 

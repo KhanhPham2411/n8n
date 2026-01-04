@@ -259,9 +259,9 @@ export abstract class AbstractServer {
 			} else next();
 		});
 
-		if (inDevelopment) {
-			this.setupDevMiddlewares();
-		}
+		// Always enable CORS middleware to support VS Code webviews and development
+		// The middleware itself handles origin restrictions based on environment
+		this.setupDevMiddlewares();
 
 		if (this.testWebhooksEnabled) {
 			const testWebhooks = Container.get(TestWebhooks);

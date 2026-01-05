@@ -21,6 +21,7 @@ import FocusPanel from '@/app/components/FocusPanel.vue';
 import { useNodeTypesStore } from '@/app/stores/nodeTypes.store';
 import { useUIStore } from '@/app/stores/ui.store';
 import CanvasRunWorkflowButton from '@/features/workflows/canvas/components/elements/buttons/CanvasRunWorkflowButton.vue';
+import CanvasLoadDataButton from '@/features/workflows/canvas/components/elements/buttons/CanvasLoadDataButton.vue';
 import { useI18n } from '@n8n/i18n';
 import { useWorkflowsStore } from '@/app/stores/workflows.store';
 import { useRunWorkflow } from '@/app/composables/useRunWorkflow';
@@ -260,7 +261,7 @@ const {
 const { extractWorkflow } = useWorkflowExtraction();
 const { applyExecutionData, applyRunDataFromFile } = useExecutionDebugging();
 const { fetchAndSetParentFolder } = useParentFolder();
-const { requestLoadDataFile, isVSCodeWebview } = useWorkflowFileSync();
+const { isVSCodeWebview } = useWorkflowFileSync();
 
 useKeybindings({
 	ctrl_alt_o: () => uiStore.openModal(ABOUT_MODAL_KEY),
@@ -1407,17 +1408,10 @@ function removeExecutionOpenedEventBindings() {
 	canvasEventBus.off('open:execution', onExecutionOpenedWithWaitTill);
 }
 
-async function onLoadData() {
-	if (!isVSCodeWebview()) {
-		toast.showError(new Error('Load data is only available in VS Code'), 'Not available');
-		return;
-	}
-
-	try {
-		requestLoadDataFile();
-	} catch (error) {
-		toast.showError(error, 'Failed to load data');
-	}
+async function onLoadData(filePath: string) {
+	// Data loading is handled by CanvasLoadDataButton component
+	// This function can be used for any additional handling if needed
+	console.log('[NodeView] Data file loaded:', filePath);
 }
 
 async function onStopExecution() {
@@ -2214,16 +2208,12 @@ onBeforeUnmount(() => {
 					@execute="runEntireWorkflow('main')"
 					@select-trigger-node="workflowsStore.setSelectedTriggerNodeName"
 				/>
-				<N8nButton
+				<CanvasLoadDataButton
 					v-if="isVSCodeWebview() && isRunWorkflowButtonVisible"
 					size="large"
-					type="secondary"
-					icon="folder-open"
-					data-test-id="load-data-button"
-					@click="onLoadData"
-				>
-					{{ i18n.baseText('nodeView.loadData.button') }}
-				</N8nButton>
+					:disabled="isExecutionDisabled"
+					@load="onLoadData"
+				/>
 				<template v-if="containsChatTriggerNodes">
 					<CanvasChatButton
 						v-if="isLogsPanelOpen"

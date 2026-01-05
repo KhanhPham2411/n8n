@@ -310,31 +310,104 @@ export function useWorkflowFileSync() {
 	/**
 	 * Request loading the .data file associated with the current workflow
 	 * Only works when running inside a VS Code webview
+	 * @param filePath - Optional specific file path to load. If not provided, loads the default .data file
 	 */
-	function requestLoadDataFile(): void {
-		if (!isVSCodeWebview()) {
-			return;
-		}
+	function requestLoadDataFile(filePath?: string): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (!isVSCodeWebview()) {
+				reject(new Error('Load data is only available in VS Code'));
+				return;
+			}
 
-		// Get the VS Code API from the global window object (set in index.html)
-		const vscode = (window as unknown as { vscode?: { postMessage: (msg: unknown) => void } })
-			.vscode;
-		if (!vscode || typeof vscode.postMessage !== 'function') {
-			console.log('[WorkflowFileSync] VS Code API not available, skipping load data request');
-			return;
-		}
+			// Get the VS Code API from the global window object (set in index.html)
+			const vscode = (window as unknown as { vscode?: { postMessage: (msg: unknown) => void } })
+				.vscode;
+			if (!vscode || typeof vscode.postMessage !== 'function') {
+				reject(new Error('VS Code API not available'));
+				return;
+			}
 
-		try {
-			const message = {
-				type: 'loadDataFile',
-			};
+			try {
+				const message: any = {
+					type: 'loadDataFile',
+				};
 
-			// Send message to VS Code extension via the VS Code API
-			vscode.postMessage(message);
-			console.log('[WorkflowFileSync] Sent load data file request to VS Code');
-		} catch (error) {
-			console.error('[WorkflowFileSync] Failed to send load data file request:', error);
-		}
+				if (filePath) {
+					message.filePath = filePath;
+				}
+
+				// Set up a one-time listener for the response
+				const messageHandler = (event: MessageEvent) => {
+					if (event.data.type === 'dataFileLoaded') {
+						window.removeEventListener('message', messageHandler);
+						resolve();
+					} else if (event.data.type === 'dataFileError') {
+						window.removeEventListener('message', messageHandler);
+						reject(new Error(event.data.error || 'Failed to load data file'));
+					}
+				};
+
+				window.addEventListener('message', messageHandler);
+
+				// Send message to VS Code extension via the VS Code API
+				vscode.postMessage(message);
+				console.log(
+					'[WorkflowFileSync] Sent load data file request to VS Code',
+					filePath ? `(path: ${filePath})` : '',
+				);
+			} catch (error) {
+				console.error('[WorkflowFileSync] Failed to send load data file request:', error);
+				reject(error);
+			}
+		});
+	}
+
+	/**
+	 * Request listing all .data files associated with the current workflow
+	 * Files matching pattern "%file%.data" where %file% is the base name of the .n8n file
+	 * Only works when running inside a VS Code webview
+	 */
+	function requestListDataFiles(): Promise<Array<{ path: string; name: string }>> {
+		return new Promise((resolve, reject) => {
+			if (!isVSCodeWebview()) {
+				reject(new Error('List data files is only available in VS Code'));
+				return;
+			}
+
+			// Get the VS Code API from the global window object (set in index.html)
+			const vscode = (window as unknown as { vscode?: { postMessage: (msg: unknown) => void } })
+				.vscode;
+			if (!vscode || typeof vscode.postMessage !== 'function') {
+				reject(new Error('VS Code API not available'));
+				return;
+			}
+
+			try {
+				const message = {
+					type: 'listDataFiles',
+				};
+
+				// Set up a one-time listener for the response
+				const messageHandler = (event: MessageEvent) => {
+					if (event.data.type === 'dataFileList') {
+						window.removeEventListener('message', messageHandler);
+						resolve(event.data.files || []);
+					} else if (event.data.type === 'dataFileListError') {
+						window.removeEventListener('message', messageHandler);
+						reject(new Error(event.data.error || 'Failed to list data files'));
+					}
+				};
+
+				window.addEventListener('message', messageHandler);
+
+				// Send message to VS Code extension via the VS Code API
+				vscode.postMessage(message);
+				console.log('[WorkflowFileSync] Sent list data files request to VS Code');
+			} catch (error) {
+				console.error('[WorkflowFileSync] Failed to send list data files request:', error);
+				reject(error);
+			}
+		});
 	}
 
 	return {
@@ -344,5 +417,6 @@ export function useWorkflowFileSync() {
 		setupAutoSync,
 		getCurrentWorkflowData,
 		requestLoadDataFile,
+		requestListDataFiles,
 	};
 }

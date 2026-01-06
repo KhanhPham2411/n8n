@@ -22,11 +22,10 @@ class TagGenerator {
 		const fullVersion = `${version}${versionSuffix}${platformSuffix}`;
 
 		const tags = {
-			ghcr: [`ghcr.io/${this.githubOwner}/${imageName}:${fullVersion}`],
 			docker: includeDockerHub ? [`${this.dockerUsername}/${imageName}:${fullVersion}`] : [],
 		};
 
-		tags.all = [...tags.ghcr, ...tags.docker];
+		tags.all = [...tags.docker];
 		return tags;
 	}
 

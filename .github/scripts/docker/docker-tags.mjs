@@ -9,7 +9,7 @@ class TagGenerator {
 		this.githubOutput = process.env.GITHUB_OUTPUT || null;
 	}
 
-	generate({ image, version, platform, includeDockerHub = false }) {
+	generate({ image, version, platform, includeDockerHub = true }) {
 		let imageName = image;
 		let versionSuffix = '';
 
@@ -22,7 +22,7 @@ class TagGenerator {
 		const fullVersion = `${version}${versionSuffix}${platformSuffix}`;
 
 		const tags = {
-			docker: includeDockerHub ? [`${this.dockerUsername}/${imageName}:${fullVersion}`] : [],
+			docker: [`${this.dockerUsername}/${imageName}:${fullVersion}`] : [],
 		};
 
 		tags.all = [...tags.docker];
@@ -45,12 +45,12 @@ class TagGenerator {
 		}
 	}
 
-	generateAll({ version, platform, includeDockerHub = false }) {
+	generateAll({ version, platform, includeDockerHub = true }) {
 		const images = ['n8n', 'runners', 'runners-distroless'];
 		const results = {};
 
 		for (const image of images) {
-			const tags = this.generate({ image, version, platform, includeDockerHub });
+			const tags = this.generate({ image, version, platform, true });
 			const prefix = image.replace('-distroless', '_distroless');
 			results[prefix] = tags;
 

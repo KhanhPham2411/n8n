@@ -22,7 +22,7 @@ class TagGenerator {
 		const fullVersion = `${version}${versionSuffix}${platformSuffix}`;
 
 		const tags = {
-			docker: [`${this.dockerUsername}/${imageName}:${fullVersion}`] : [],
+			docker: [`${this.dockerUsername}/${imageName}:${fullVersion}`]
 		};
 
 		tags.all = [...tags.docker];

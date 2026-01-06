@@ -109,8 +109,8 @@ jobs:
         if: needs.determine-build-context.outputs.push_enabled == 'true'
         uses: ./.github/actions/docker-registry-login
         with:
-          login-ghcr: true
-          login-dockerhub: ${{ needs.determine-build-context.outputs.push_to_docker == 'true' }}
+          login-ghcr: false
+          login-dockerhub: true
           dockerhub-username: ${{ secrets.DOCKER_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKER_PASSWORD }}
 

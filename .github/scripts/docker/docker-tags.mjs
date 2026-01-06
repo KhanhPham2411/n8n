@@ -50,7 +50,7 @@ class TagGenerator {
 		const results = {};
 
 		for (const image of images) {
-			const tags = this.generate({ image, version, platform, true });
+			const tags = this.generate({ image, version, platform, includeDockerHub: true });
 			const prefix = image.replace('-distroless', '_distroless');
 			results[prefix] = tags;
 

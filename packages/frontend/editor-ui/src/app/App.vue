@@ -106,8 +106,11 @@ async function handleVSCodeWorkflowSync(messageEvent: MessageEvent) {
 				console.log('[App.vue] Syncing workflow:', workflowData.name);
 				const result = await syncWorkflow(workflowData);
 
-				// Navigate to the workflow
-				await navigateToWorkflow(result.workflow.id);
+				// Navigate to the workflow only if we're not already on it or if it's a new workflow
+				// This prevents closing the NDV when syncing after node execution
+				if (result.action === 'created' || workflowsStore.workflowId !== result.workflow.id) {
+					await navigateToWorkflow(result.workflow.id);
+				}
 
 				// Refresh the workflow data in the UI by fetching and initializing workspace
 				try {

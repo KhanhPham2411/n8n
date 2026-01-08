@@ -467,7 +467,10 @@ export class DirectedGraph {
 
 		for (const [fromNodeName, iConnection] of Object.entries(workflow.connectionsBySourceNode)) {
 			const from = workflow.getNode(fromNodeName);
-			a.ok(from);
+			if (!from) {
+				// Skip connections from non-existent nodes (dangling connections)
+				continue;
+			}
 
 			for (const [outputType, outputs] of Object.entries(iConnection)) {
 				for (const [outputIndex, conns] of outputs.entries()) {
@@ -475,7 +478,10 @@ export class DirectedGraph {
 						// TODO: What's with the input type?
 						const { node: toNodeName, type: _inputType, index: inputIndex } = conn;
 						const to = workflow.getNode(toNodeName);
-						a.ok(to);
+						if (!to) {
+							// Skip connections to non-existent nodes (dangling connections)
+							continue;
+						}
 
 						graph.addConnection({
 							from,
@@ -506,14 +512,20 @@ export class DirectedGraph {
 
 		for (const [fromNodeName, iConnection] of Object.entries(connections)) {
 			const from = nodeMap.get(fromNodeName);
-			a.ok(from);
+			if (!from) {
+				// Skip connections from non-existent nodes (dangling connections)
+				continue;
+			}
 
 			for (const [outputType, outputs] of Object.entries(iConnection)) {
 				for (const [outputIndex, conns] of outputs.entries()) {
 					for (const conn of conns ?? []) {
 						const { node: toNodeName, type: _inputType, index: inputIndex } = conn;
 						const to = nodeMap.get(toNodeName);
-						a.ok(to);
+						if (!to) {
+							// Skip connections to non-existent nodes (dangling connections)
+							continue;
+						}
 
 						graph.addConnection({
 							from,

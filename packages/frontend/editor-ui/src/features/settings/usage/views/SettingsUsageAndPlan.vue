@@ -11,6 +11,7 @@ import { useDocumentTitle } from '@/app/composables/useDocumentTitle';
 import { hasPermission } from '@/app/utils/rbac/permissions';
 import { COMMUNITY_PLUS_ENROLLMENT_MODAL } from '../usage.constants';
 import { useUsersStore } from '@/features/settings/users/users.store';
+import { useSettingsStore } from '@/app/stores/settings.store';
 import { getResourcePermissions } from '@n8n/permissions';
 import { usePageRedirectionHelper } from '@/app/composables/usePageRedirectionHelper';
 import { I18nT } from 'vue-i18n';
@@ -33,6 +34,7 @@ const route = useRoute();
 const router = useRouter();
 const uiStore = useUIStore();
 const usersStore = useUsersStore();
+const settingsStore = useSettingsStore();
 const toast = useToast();
 const documentTitle = useDocumentTitle();
 const pageRedirectionHelper = usePageRedirectionHelper();
@@ -250,7 +252,11 @@ const openCommunityRegisterModal = () => {
 				</span>
 			</N8nHeading>
 
-			<N8nNotice v-if="isCommunity && canUserRegisterCommunityPlus" class="mt-0" theme="warning">
+			<N8nNotice
+				v-if="isCommunity && canUserRegisterCommunityPlus && !settingsStore.isLocalMode"
+				class="mt-0"
+				theme="warning"
+			>
 				<I18nT keypath="settings.usageAndPlan.callOut" scope="global">
 					<template #link>
 						<N8nButton

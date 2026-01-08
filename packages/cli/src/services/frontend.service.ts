@@ -321,6 +321,7 @@ export class FrontendService {
 			license: {
 				consumerId: 'unknown',
 				environment: this.globalConfig.license.tenantId === 1 ? 'production' : 'staging',
+				isLocal: this.globalConfig.license.isLocal,
 			},
 			variables: {
 				limit: 0,

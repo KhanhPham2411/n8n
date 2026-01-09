@@ -147,6 +147,9 @@ export class FrontendService {
 		const instanceBaseUrl = this.urlService.getInstanceBaseUrl();
 		const restEndpoint = this.globalConfig.endpoints.rest;
 
+		// Log N8N_LOCAL mode status
+		this.logger.info(`[N8N_LOCAL] isLocal=${this.globalConfig.license.isLocal}`);
+
 		const telemetrySettings: ITelemetrySettings = {
 			// Disable telemetry in local mode (N8N_LOCAL=true)
 			enabled: !this.globalConfig.license.isLocal && this.globalConfig.diagnostics.enabled,
@@ -226,10 +229,10 @@ export class FrontendService {
 				proxy: `${instanceBaseUrl}/${restEndpoint}/posthog`,
 				debug: this.globalConfig.logging.level === 'debug',
 			},
-			personalizationSurveyEnabled:
-				this.globalConfig.personalization.enabled &&
-				!this.globalConfig.license.isLocal &&
-				this.globalConfig.diagnostics.enabled,
+			// Disable personalization survey in local mode (N8N_LOCAL=true)
+			personalizationSurveyEnabled: this.globalConfig.license.isLocal
+				? false
+				: this.globalConfig.personalization.enabled && this.globalConfig.diagnostics.enabled,
 			defaultLocale: this.globalConfig.defaultLocale,
 			userManagement: {
 				quota: this.license.getUsersLimit(),
@@ -366,6 +369,11 @@ export class FrontendService {
 			activeModules: this.moduleRegistry.getActiveModules(),
 			envFeatureFlags: this.collectEnvFeatureFlags(),
 		};
+
+		// Log critical settings for debugging
+		this.logger.info(
+			`[N8N_LOCAL] Settings initialized: personalizationSurveyEnabled=${this.settings.personalizationSurveyEnabled}, showNonProdBanner=${this.settings.enterprise.showNonProdBanner}, telemetry.enabled=${this.settings.telemetry?.enabled}`,
+		);
 	}
 
 	async generateTypes() {

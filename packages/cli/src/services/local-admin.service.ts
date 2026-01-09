@@ -1,7 +1,14 @@
 import { Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { GLOBAL_OWNER_ROLE, UserRepository } from '@n8n/db';
+import {
+	GLOBAL_OWNER_ROLE,
+	UserRepository,
+	ProjectRepository,
+	ProjectRelationRepository,
+} from '@n8n/db';
 import { Service } from '@n8n/di';
+import { PROJECT_OWNER_ROLE_SLUG } from '@n8n/permissions';
+
 import { PasswordUtility } from '@/services/password.utility';
 
 /**
@@ -15,6 +22,8 @@ export class LocalAdminService {
 		private readonly globalConfig: GlobalConfig,
 		private readonly userRepository: UserRepository,
 		private readonly passwordUtility: PasswordUtility,
+		private readonly projectRepository: ProjectRepository,
+		private readonly projectRelationRepository: ProjectRelationRepository,
 	) {}
 
 	/**
@@ -34,13 +43,15 @@ export class LocalAdminService {
 
 		try {
 			// Check if the local admin user already exists
-			let localAdmin = await this.userRepository.findOne({
+			const localAdmin = await this.userRepository.findOne({
 				where: { email: localAdminEmail },
 				relations: ['role'],
 			});
 
 			if (localAdmin) {
 				this.logger.info(`Local admin user ${localAdminEmail} already exists`);
+				// Ensure personal project exists for this user
+				await this.ensurePersonalProjectExists(localAdmin);
 				return;
 			}
 
@@ -57,14 +68,14 @@ export class LocalAdminService {
 				existingOwner.lastName = existingOwner.lastName || 'User';
 
 				// Set a default password if not set (for shell users)
-				if (!existingOwner.password) {
-					existingOwner.password = await this.passwordUtility.hash('admin');
-				}
+				existingOwner.password ??= await this.passwordUtility.hash('admin');
 
 				await this.userRepository.save(existingOwner);
 				this.logger.info(
 					`Updated existing owner user to use local admin email: ${localAdminEmail}`,
 				);
+				// Ensure personal project exists for this user
+				await this.ensurePersonalProjectExists(existingOwner);
 			} else {
 				// No owner exists yet - create the local admin user
 				const newAdmin = this.userRepository.create({
@@ -83,6 +94,57 @@ export class LocalAdminService {
 				email: localAdminEmail,
 				error: error as Error,
 			});
+		}
+	}
+
+	/**
+	 * Ensures that a personal project exists for the given user
+	 * Creates the project and relation if they don't exist
+	 */
+	private async ensurePersonalProjectExists(user: {
+		id: string;
+		email: string;
+		firstName?: string | null;
+		lastName?: string | null;
+	}): Promise<void> {
+		// Check if personal project already exists
+		const existingProject = await this.projectRepository.getPersonalProjectForUser(user.id);
+
+		if (existingProject) {
+			this.logger.debug(`Personal project already exists for user ${user.email}`);
+			return;
+		}
+
+		this.logger.info(`Creating personal project for user ${user.email}`);
+
+		try {
+			// Create personal project
+			const personalProjectName = `${user.firstName ?? user.email}'s Projects`;
+			const project = this.projectRepository.create({
+				type: 'personal',
+				name: personalProjectName,
+				creatorId: user.id,
+			});
+			const savedProject = await this.projectRepository.save(project);
+
+			// Create project relation
+			const projectRelation = this.projectRelationRepository.create({
+				projectId: savedProject.id,
+				userId: user.id,
+				role: { slug: PROJECT_OWNER_ROLE_SLUG },
+			});
+			await this.projectRelationRepository.save(projectRelation);
+
+			this.logger.info(`Successfully created personal project for user ${user.email}`);
+		} catch (error) {
+			this.logger.error(
+				`Failed to create personal project for user ${user.email}: ${(error as Error).message}`,
+				{
+					userId: user.id,
+					error: error as Error,
+				},
+			);
+			throw error;
 		}
 	}
 }

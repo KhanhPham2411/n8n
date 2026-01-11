@@ -33,8 +33,10 @@ const { goToUpgrade } = usePageRedirectionHelper();
 const telemetry = useTelemetry();
 
 const loading = ref(false);
+const creatingAtomKey = ref(false);
 const apiKeysStore = useApiKeysStore();
-const { getAndCacheApiKeys, deleteApiKey, getApiKeyAvailableScopes } = apiKeysStore;
+const { getAndCacheApiKeys, deleteApiKey, getApiKeyAvailableScopes, createAtomApiKey } =
+	apiKeysStore;
 const { apiKeysSortByCreationDate } = storeToRefs(apiKeysStore);
 const { isSwaggerUIEnabled, publicApiPath, publicApiLatestVersion } = settingsStore;
 const { baseUrl } = useRootStore();
@@ -109,6 +111,34 @@ function onEdit(id: string) {
 		name: API_KEY_CREATE_OR_EDIT_MODAL_KEY,
 		data: { mode: 'edit', activeId: id },
 	});
+}
+
+async function onCreateAtomApiKey() {
+	try {
+		creatingAtomKey.value = true;
+		const newApiKey = await createAtomApiKey();
+
+		// Show the API key in a modal similar to the regular create flow
+		uiStore.openModalWithData({
+			name: API_KEY_CREATE_OR_EDIT_MODAL_KEY,
+			data: {
+				mode: 'created',
+				rawApiKey: newApiKey.rawApiKey,
+				apiKey: newApiKey,
+			},
+		});
+
+		showMessage({
+			title: i18n.baseText('settings.api.create.toast'),
+			type: 'success',
+		});
+
+		telemetry.track('User clicked create n8n Atom API key button');
+	} catch (error) {
+		showError(error, i18n.baseText('settings.api.create.error'));
+	} finally {
+		creatingAtomKey.value = false;
+	}
 }
 </script>
 
@@ -188,9 +218,19 @@ function onEdit(id: string) {
 				{{ i18n.baseText(`settings.api.view.external-docs`) }}
 			</N8nLink>
 		</div>
-		<div class="mt-m text-right">
+		<div class="mt-m text-right" style="display: flex; gap: 9px; justify-content: flex-end">
 			<N8nButton
 				v-if="isPublicApiEnabled && apiKeysSortByCreationDate.length"
+				type="primary"
+				size="large"
+				:loading="creatingAtomKey"
+				@click="onCreateAtomApiKey"
+			>
+				Create n8n Atom key
+			</N8nButton>
+			<N8nButton
+				v-if="isPublicApiEnabled && apiKeysSortByCreationDate.length"
+				type="secondary"
 				size="large"
 				@click="onCreateApiKey"
 			>

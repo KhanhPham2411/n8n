@@ -21,10 +21,12 @@
 		</noscript>
 		<div id="app"></div>
 		<script type="module" src="/src/main.ts"></script>
-		<script>
+    <script>
       let vscode;
       let isGlobalKanban = true;
-      if (typeof acquireVsCodeApi !== "undefined") {
+      // Only acquire VS Code API if it hasn't been acquired already
+      // This prevents "An instance of the VS Code API has already been acquired" error
+      if (typeof acquireVsCodeApi !== "undefined" && !window.vscode) {
           vscode = acquireVsCodeApi();
           // Make it globally available
           window.vscode = vscode;
@@ -39,6 +41,9 @@
 						// });
 					}
 					window.addEventListener('message', handleMessage);
+      } else if (window.vscode) {
+          // VS Code API already acquired, use existing instance
+          vscode = window.vscode;
       }
     </script>
 	</body>

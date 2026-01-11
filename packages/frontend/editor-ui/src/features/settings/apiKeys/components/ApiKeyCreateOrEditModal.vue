@@ -95,7 +95,7 @@ const inputRef = ref<HTMLTextAreaElement | null>(null);
 
 const props = withDefaults(
 	defineProps<{
-		mode?: 'new' | 'edit';
+		mode?: 'new' | 'edit' | 'created';
 		activeId?: string;
 	}>(),
 	{
@@ -133,6 +133,16 @@ onMounted(() => {
 		selectedScopes.value = !apiKeyScopesEnabled.value
 			? apiKeyStore.availableScopes
 			: apiKey.scopes.filter((scope) => apiKeyStore.availableScopes.includes(scope));
+	}
+
+	if (props.mode === 'created') {
+		// Check if modal data contains the API key
+		const modalData = uiStore.modalsById[API_KEY_CREATE_OR_EDIT_MODAL_KEY]?.data;
+		if (modalData?.rawApiKey && modalData?.apiKey) {
+			newApiKey.value = modalData.apiKey;
+			rawApiKey.value = modalData.rawApiKey;
+			label.value = modalData.apiKey.label ?? '';
+		}
 	}
 
 	if (props.mode === 'new' && !apiKeyScopesEnabled.value) {
@@ -216,6 +226,8 @@ const modalTitle = computed(() => {
 		} else {
 			path = 'create';
 		}
+	} else if (props.mode === 'created') {
+		path = 'created';
 	}
 	return i18n.baseText(`settings.api.view.modal.title.${path}` as BaseTextKey);
 });
@@ -261,10 +273,10 @@ async function handleEnterKey(event: KeyboardEvent) {
 	>
 		<template #content>
 			<div @keyup.enter="handleEnterKey">
-				<N8nCard v-if="newApiKey" class="mb-4xs">
+				<N8nCard v-if="newApiKey || (props.mode === 'created' && rawApiKey)" class="mb-4xs">
 					<CopyInput
-						:label="newApiKey.label"
-						:value="newApiKey.rawApiKey"
+						:label="(newApiKey || {}).label || 'n8n Atom Key'"
+						:value="newApiKey?.rawApiKey || rawApiKey"
 						:redact-value="true"
 						:copy-button-text="i18n.baseText('generic.clickToCopy')"
 						:toast-title="i18n.baseText('settings.api.view.copy.toast')"

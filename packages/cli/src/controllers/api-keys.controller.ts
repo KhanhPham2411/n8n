@@ -1,5 +1,5 @@
 import { CreateApiKeyRequestDto, UpdateApiKeyRequestDto } from '@n8n/api-types';
-import { AuthenticatedRequest } from '@n8n/db';
+import { AuthenticatedRequest, GLOBAL_OWNER_ROLE, UserRepository } from '@n8n/db';
 import {
 	Body,
 	Delete,
@@ -10,7 +10,7 @@ import {
 	Post,
 	RestController,
 } from '@n8n/decorators';
-import { getApiKeyScopesForRole } from '@n8n/permissions';
+import { getApiKeyScopesForRole, OWNER_API_KEY_SCOPES } from '@n8n/permissions';
 import type { RequestHandler } from 'express';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
@@ -31,6 +31,7 @@ export class ApiKeysController {
 	constructor(
 		private readonly eventService: EventService,
 		private readonly publicApiKeyService: PublicApiKeyService,
+		private readonly userRepository: UserRepository,
 	) {}
 
 	/**
@@ -107,5 +108,39 @@ export class ApiKeysController {
 	async getApiKeyScopes(req: AuthenticatedRequest, _res: Response) {
 		const scopes = getApiKeyScopesForRole(req.user);
 		return scopes;
+	}
+
+	/**
+	 * Create an n8n Atom API Key (for VS Code extension)
+	 * Creates an API key for the owner user with all owner scopes, no expiration
+	 */
+	@GlobalScope('apiKey:manage')
+	@Post('/atom', { middlewares: [isApiEnabledMiddleware] })
+	async createAtomApiKey(req: AuthenticatedRequest, _res: Response) {
+		// Get the owner user
+		const owner = await this.userRepository.findOne({
+			where: { role: { slug: GLOBAL_OWNER_ROLE.slug } },
+			relations: ['role'],
+		});
+
+		if (!owner) {
+			throw new BadRequestError('Owner user not found');
+		}
+
+		// Create API key with all owner scopes, no expiration, labeled for Atom
+		const newApiKey = await this.publicApiKeyService.createPublicApiKeyForUser(owner, {
+			label: 'n8n Atom Key',
+			expiresAt: null,
+			scopes: OWNER_API_KEY_SCOPES,
+		});
+
+		this.eventService.emit('public-api-key-created', { user: owner, publicApi: false });
+
+		return {
+			...newApiKey,
+			apiKey: this.publicApiKeyService.redactApiKey(newApiKey.apiKey),
+			rawApiKey: newApiKey.apiKey,
+			expiresAt: null,
+		};
 	}
 }

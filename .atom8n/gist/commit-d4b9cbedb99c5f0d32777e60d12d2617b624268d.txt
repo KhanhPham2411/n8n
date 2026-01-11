@@ -1,0 +1,368 @@
+
+========================================
+GIT COMMIT EXTRACTION
+========================================
+Extracted on: 2026-01-11T06:09:08.043Z
+Commit ID: d4b9cbedb99c5f0d32777e60d12d2617b624268d
+
+----------------------------------------
+COMMIT METADATA
+----------------------------------------
+Commit Hash: d4b9cbedb99c5f0d32777e60d12d2617b624268d
+Author: khanh <phamduckhanh2411@gmail.com>
+Date: 2025-12-31 21:38:49 +0700
+Commit Message:
+feat(auth): Implement auto-authentication with owner user and remove authentication requirements throughout the application
+
+
+
+
+----------------------------------------
+CHANGED FILES
+----------------------------------------
+M	packages/cli/src/auth/auth.service.ts
+M	packages/cli/src/services/frontend.service.ts
+M	packages/frontend/editor-ui/src/app/components/BottomMenu.vue
+M	packages/frontend/editor-ui/src/app/components/MainSidebar.vue
+M	packages/frontend/editor-ui/src/app/router.ts
+M	packages/frontend/editor-ui/src/app/utils/rbac/middleware/authenticated.ts
+M	packages/frontend/editor-ui/src/app/utils/rbac/middleware/guest.ts
+M	packages/frontend/editor-ui/src/features/core/auth/views/SignoutView.vue
+M	packages/frontend/editor-ui/src/features/settings/users/users.store.ts
+
+
+----------------------------------------
+FULL COMMIT DETAILS (with diff)
+----------------------------------------
+commit d4b9cbedb99c5f0d32777e60d12d2617b624268d
+Author: khanh <phamduckhanh2411@gmail.com>
+Date:   Wed Dec 31 21:38:49 2025 +0700
+
+    feat(auth): Implement auto-authentication with owner user and remove authentication requirements throughout the application
+
+diff --git a/packages/cli/src/auth/auth.service.ts b/packages/cli/src/auth/auth.service.ts
+index ccf72bd104..37b5605c54 100644
+--- a/packages/cli/src/auth/auth.service.ts
++++ b/packages/cli/src/auth/auth.service.ts
+@@ -98,6 +98,29 @@ export class AuthService {
+ 		allowUnauthenticated,
+ 	}: CreateAuthMiddlewareOptions) {
+ 		return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
++			// AUTO-AUTH: Skip authentication and automatically use the owner user
++			// This removes the need for login while keeping all functionality working
++			try {
++				const owner = await this.userRepository.findOne({
++					where: { role: { slug: GLOBAL_OWNER_ROLE.slug } },
++					relations: ['role'],
++				});
++
++				if (owner) {
++					req.user = owner;
++					req.authInfo = {
++						usedMfa: false,
++					};
++					next();
++					return;
++				}
++			} catch (error) {
++				this.logger.warn('Failed to auto-authenticate with owner user', {
++					error: (error as Error).message,
++				});
++			}
++
++			// Fallback to original auth logic if owner not found
+ 			const token = req.cookies[AUTH_COOKIE_NAME];
+ 
+ 			if (token) {
+diff --git a/packages/cli/src/services/frontend.service.ts b/packages/cli/src/services/frontend.service.ts
+index e04aefe43b..9713843d8b 100644
+--- a/packages/cli/src/services/frontend.service.ts
++++ b/packages/cli/src/services/frontend.service.ts
+@@ -229,7 +229,8 @@ export class FrontendService {
+ 			defaultLocale: this.globalConfig.defaultLocale,
+ 			userManagement: {
+ 				quota: this.license.getUsersLimit(),
+-				showSetupOnFirstLoad: !(await this.ownershipService.hasInstanceOwner()),
++				// AUTH REMOVED: Never show setup page since authentication is disabled
++				showSetupOnFirstLoad: false,
+ 				smtpSetup: this.mailer.isEmailSetUp,
+ 				authenticationMethod: getCurrentAuthenticationMethod(),
+ 			},
+@@ -392,7 +393,8 @@ export class FrontendService {
+ 		Object.assign(this.settings.userManagement, {
+ 			quota: this.license.getUsersLimit(),
+ 			authenticationMethod: getCurrentAuthenticationMethod(),
+-			showSetupOnFirstLoad: !(await this.ownershipService.hasInstanceOwner()),
++			// AUTH REMOVED: Never show setup page since authentication is disabled
++			showSetupOnFirstLoad: false,
+ 		});
+ 
+ 		let dismissedBanners: string[] = [];
+diff --git a/packages/frontend/editor-ui/src/app/components/BottomMenu.vue b/packages/frontend/editor-ui/src/app/components/BottomMenu.vue
+index 1f492ba384..ca2b23ba1e 100644
+--- a/packages/frontend/editor-ui/src/app/components/BottomMenu.vue
++++ b/packages/frontend/editor-ui/src/app/components/BottomMenu.vue
+@@ -24,7 +24,6 @@ defineProps<{
+ 
+ const emit = defineEmits<{
+ 	select: [key: string];
+-	logout: [];
+ }>();
+ 
+ const cloudPlanStore = useCloudPlanStore();
+@@ -79,10 +78,6 @@ const userIsTrialing = computed(() => cloudPlanStore.userIsTrialing);
+ function handleSelect(key: string) {
+ 	emit('select', key);
+ }
+-
+-function onLogout() {
+-	emit('logout');
+-}
+ </script>
+ 
+ <template>
+@@ -155,12 +150,7 @@ function onLogout() {
+ 								/>
+ 								<N8nMenuItem v-else :item="child" @click="() => handleSelect(child.id)" />
+ 							</template>
+-							<span :class="$style.divider" />
+-							<N8nMenuItem
+-								:data-test-id="'main-sidebar-log-out'"
+-								:item="{ id: 'sign-out', label: 'Sign out', icon: 'door-open' }"
+-								@click="onLogout"
+-							/>
++							<!-- AUTH REMOVED: Removed logout option since authentication is disabled -->
+ 						</div>
+ 					</template>
+ 					<template #trigger>
+diff --git a/packages/frontend/editor-ui/src/app/components/MainSidebar.vue b/packages/frontend/editor-ui/src/app/components/MainSidebar.vue
+index f933378dfe..f0dd058ffd 100644
+--- a/packages/frontend/editor-ui/src/app/components/MainSidebar.vue
++++ b/packages/frontend/editor-ui/src/app/components/MainSidebar.vue
+@@ -314,9 +314,7 @@ const handleSelect = (key: string) => {
+ 	}
+ };
+ 
+-const onLogout = () => {
+-	void router.push({ name: VIEWS.SIGNOUT });
+-};
++// AUTH REMOVED: Removed logout option since authentication is disabled
+ 
+ useKeybindings({
+ 	ctrl_alt_o: () => handleSelect('about'),
+@@ -352,12 +350,7 @@ useKeybindings({
+ 					:collapsed="isCollapsed"
+ 					:plan-name="cloudPlanStore.currentPlanData?.displayName"
+ 				/>
+-				<BottomMenu
+-					:items="visibleMenuItems"
+-					:is-collapsed="isCollapsed"
+-					@logout="onLogout"
+-					@select="handleSelect"
+-				/>
++				<BottomMenu :items="visibleMenuItems" :is-collapsed="isCollapsed" @select="handleSelect" />
+ 			</div>
+ 		</N8nScrollArea>
+ 		<MainSidebarSourceControl :is-collapsed="isCollapsed" />
+diff --git a/packages/frontend/editor-ui/src/app/router.ts b/packages/frontend/editor-ui/src/app/router.ts
+index d0adc4c2c8..8a2cb97a9b 100644
+--- a/packages/frontend/editor-ui/src/app/router.ts
++++ b/packages/frontend/editor-ui/src/app/router.ts
+@@ -970,16 +970,12 @@ router.beforeEach(async (to: RouteLocationNormalized, from, next) => {
+ 		await initializeAuthenticatedFeatures(undefined, to.name as string);
+ 
+ 		/**
+-		 * Redirect to setup page. User should be redirected to this only once
++		 * AUTH REMOVED: Skip setup page redirect - authentication is disabled
++		 * The setup page is no longer needed as we auto-authenticate with owner user
+ 		 */
+-
+-		const settingsStore = useSettingsStore();
+-		if (settingsStore.showSetupPage) {
+-			if (to.name === VIEWS.SETUP) {
+-				return next();
+-			}
+-
+-			return next({ name: VIEWS.SETUP });
++		// Redirect setup page to homepage since auth is removed
++		if (to.name === VIEWS.SETUP) {
++			return next({ name: VIEWS.HOMEPAGE });
+ 		}
+ 
+ 		/**
+diff --git a/packages/frontend/editor-ui/src/app/utils/rbac/middleware/authenticated.ts b/packages/frontend/editor-ui/src/app/utils/rbac/middleware/authenticated.ts
+index 85e029e18a..05a02f1cee 100644
+--- a/packages/frontend/editor-ui/src/app/utils/rbac/middleware/authenticated.ts
++++ b/packages/frontend/editor-ui/src/app/utils/rbac/middleware/authenticated.ts
+@@ -1,31 +1,13 @@
+ import type { RouterMiddleware } from '@/app/types/router';
+-import { VIEWS } from '@/app/constants';
+ import type { AuthenticatedPermissionOptions } from '@/app/types/rbac';
+-import { isAuthenticated, shouldEnableMfa } from '@/app/utils/rbac/checks';
+ 
++// AUTH REMOVED: This middleware now always allows access without authentication
+ export const authenticatedMiddleware: RouterMiddleware<AuthenticatedPermissionOptions> = async (
+-	to,
++	_to,
+ 	_from,
+-	next,
+-	options,
++	_next,
++	_options,
+ ) => {
+-	// ensure that we are removing the already existing redirect query parameter
+-	// to avoid infinite redirect loops
+-	const url = new URL(window.location.href);
+-	url.searchParams.delete('redirect');
+-	const redirect = to.query.redirect ?? encodeURIComponent(`${url.pathname}${url.search}`);
+-
+-	const valid = isAuthenticated(options);
+-	if (!valid) {
+-		return next({ name: VIEWS.SIGNIN, query: { redirect } });
+-	}
+-
+-	// If MFA is not enabled, and the instance enforces MFA, redirect to personal settings
+-	const mfaNeeded = shouldEnableMfa();
+-	if (mfaNeeded) {
+-		if (to.name !== VIEWS.PERSONAL_SETTINGS) {
+-			return next({ name: VIEWS.PERSONAL_SETTINGS, query: { redirect } });
+-		}
+-		return;
+-	}
++	// Authentication check bypassed - all routes are accessible without login
++	return;
+ };
+diff --git a/packages/frontend/editor-ui/src/app/utils/rbac/middleware/guest.ts b/packages/frontend/editor-ui/src/app/utils/rbac/middleware/guest.ts
+index 98b5c046ef..6bf7e27009 100644
+--- a/packages/frontend/editor-ui/src/app/utils/rbac/middleware/guest.ts
++++ b/packages/frontend/editor-ui/src/app/utils/rbac/middleware/guest.ts
+@@ -1,33 +1,32 @@
+ import type { RouterMiddleware } from '@/app/types/router';
+ import { VIEWS } from '@/app/constants';
+ import type { GuestPermissionOptions } from '@/app/types/rbac';
+-import { isGuest } from '@/app/utils/rbac/checks';
+ 
++// AUTH REMOVED: Guest middleware now always redirects to homepage
++// since authentication is disabled, there's no need for login/signup pages
+ export const guestMiddleware: RouterMiddleware<GuestPermissionOptions> = async (
+ 	to,
+ 	_from,
+ 	next,
+ ) => {
+-	const valid = isGuest();
+-	if (!valid) {
+-		const redirect = (to.query.redirect as string) ?? '';
++	// Always redirect guest-only pages (signin, signup) to homepage
++	const redirect = (to.query.redirect as string) ?? '';
+ 
+-		// Allow local path redirects
+-		if (redirect.startsWith('/')) {
+-			return next(redirect);
+-		}
++	// Allow local path redirects
++	if (redirect.startsWith('/')) {
++		return next(redirect);
++	}
+ 
+-		try {
+-			// Only allow origin domain redirects
+-			const url = new URL(redirect);
+-			if (url.origin === window.location.origin) {
+-				return next(redirect);
+-			}
+-		} catch {
+-			// Intentionally fall through to redirect to homepage
+-			// if the redirect is an invalid URL
++	try {
++		// Only allow origin domain redirects
++		const url = new URL(redirect);
++		if (url.origin === window.location.origin) {
++			return next(redirect);
+ 		}
+-
+-		return next({ name: VIEWS.HOMEPAGE });
++	} catch {
++		// Intentionally fall through to redirect to homepage
++		// if the redirect is an invalid URL
+ 	}
++
++	return next({ name: VIEWS.HOMEPAGE });
+ };
+diff --git a/packages/frontend/editor-ui/src/features/core/auth/views/SignoutView.vue b/packages/frontend/editor-ui/src/features/core/auth/views/SignoutView.vue
+index 44115a55aa..24e918933c 100644
+--- a/packages/frontend/editor-ui/src/features/core/auth/views/SignoutView.vue
++++ b/packages/frontend/editor-ui/src/features/core/auth/views/SignoutView.vue
+@@ -1,27 +1,14 @@
+ <script setup lang="ts">
++// AUTH REMOVED: Signout now just redirects to homepage
+ import { VIEWS } from '@/app/constants';
+-import { useUsersStore } from '@/features/settings/users/users.store';
+-import { useToast } from '@/app/composables/useToast';
+ import { useRouter } from 'vue-router';
+-import { useI18n } from '@n8n/i18n';
+ import { onMounted } from 'vue';
+ 
+-const usersStore = useUsersStore();
+-const toast = useToast();
+ const router = useRouter();
+-const i18n = useI18n();
+-
+-const logout = async () => {
+-	try {
+-		await usersStore.logout();
+-		window.location.href = router.resolve({ name: VIEWS.SIGNIN }).href;
+-	} catch (e) {
+-		toast.showError(e, i18n.baseText('auth.signout.error'));
+-	}
+-};
+ 
+ onMounted(() => {
+-	void logout();
++	// Redirect to homepage since auth is disabled
++	void router.push({ name: VIEWS.HOMEPAGE });
+ });
+ </script>
+ 
+diff --git a/packages/frontend/editor-ui/src/features/settings/users/users.store.ts b/packages/frontend/editor-ui/src/features/settings/users/users.store.ts
+index d7effdf7bd..8bd7086263 100644
+--- a/packages/frontend/editor-ui/src/features/settings/users/users.store.ts
++++ b/packages/frontend/editor-ui/src/features/settings/users/users.store.ts
+@@ -160,6 +160,22 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
+ 			}
+ 		}
+ 	};
++	// AUTH REMOVED: Create a default user if API fails
++	const createDefaultUser = async () => {
++		const defaultUser: CurrentUserResponse = {
++			id: 'default-owner',
++			email: 'owner@localhost',
++			firstName: 'Owner',
++			lastName: 'User',
++			role: ROLE.Owner,
++			isOwner: true,
++			isPending: false,
++			mfaEnabled: false,
++			createdAt: new Date().toISOString(),
++			globalScopes: [],
++		};
++		await setCurrentUser(defaultUser);
++	};
+ 
+ 	const loginWithCookie = async () => {
+ 		const user = await usersApi.loginCurrentUser(rootStore.restApiContext);
+@@ -178,7 +194,12 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
+ 		try {
+ 			await loginWithCookie();
+ 			initialized.value = true;
+-		} catch (e) {}
++		} catch (e) {
++			// AUTH REMOVED: If login fails, create a default user so the app works
++			console.warn('Failed to login with cookie, using default user');
++			await createDefaultUser();
++			initialized.value = true;
++		}
+ 	};
+ 
+ 	const unsetCurrentUser = () => {
+
+========================================

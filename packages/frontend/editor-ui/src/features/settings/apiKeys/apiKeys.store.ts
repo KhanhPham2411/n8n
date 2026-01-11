@@ -56,9 +56,17 @@ export const useApiKeysStore = defineStore(STORES.API_KEYS, () => {
 		apiKeysById.value[id].scopes = payload.scopes;
 	};
 
+	const createAtomApiKey = async () => {
+		const newApiKey = await publicApiApi.createAtomApiKey(rootStore.restApiContext);
+		const { rawApiKey, ...rest } = newApiKey;
+		apiKeys.value.push(rest);
+		return newApiKey;
+	};
+
 	return {
 		getAndCacheApiKeys,
 		createApiKey,
+		createAtomApiKey,
 		deleteApiKey,
 		updateApiKey,
 		getApiKeyAvailableScopes,

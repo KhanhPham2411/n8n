@@ -24,6 +24,7 @@ defineProps<{
 
 const emit = defineEmits<{
 	select: [key: string];
+	logout: [];
 }>();
 
 const cloudPlanStore = useCloudPlanStore();
@@ -77,6 +78,12 @@ const userIsTrialing = computed(() => cloudPlanStore.userIsTrialing);
 
 function handleSelect(key: string) {
 	emit('select', key);
+}
+
+// [IMPROVED AUTH] Restored logout functionality
+function onLogout() {
+	console.debug('[IMPROVED AUTH] Logout button clicked');
+	emit('logout');
 }
 </script>
 
@@ -150,7 +157,13 @@ function handleSelect(key: string) {
 								/>
 								<N8nMenuItem v-else :item="child" @click="() => handleSelect(child.id)" />
 							</template>
-							<!-- AUTH REMOVED: Removed logout option since authentication is disabled -->
+							<!-- [IMPROVED AUTH] Restored logout option for browser users -->
+							<span :class="$style.divider" />
+							<N8nMenuItem
+								:data-test-id="'main-sidebar-log-out'"
+								:item="{ id: 'sign-out', label: 'Sign out', icon: 'door-open' }"
+								@click="onLogout"
+							/>
 						</div>
 					</template>
 					<template #trigger>

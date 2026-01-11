@@ -183,30 +183,12 @@ export class AuthService {
 				return;
 			}
 
-			// Browser request - use cookie-based authentication
-			// AUTO-AUTH: Skip authentication and automatically use the owner user
-			// This removes the need for login while keeping all functionality working
-			try {
-				const owner = await this.userRepository.findOne({
-					where: { role: { slug: GLOBAL_OWNER_ROLE.slug } },
-					relations: ['role'],
-				});
+			// Browser request - use standard cookie-based authentication
+			// [IMPROVED AUTH] Browser requests require login - redirect to /signin handled by frontend
+			this.logger.debug(
+				'[IMPROVED AUTH] Processing browser request - using cookie-based authentication',
+			);
 
-				if (owner) {
-					req.user = owner;
-					req.authInfo = {
-						usedMfa: false,
-					};
-					next();
-					return;
-				}
-			} catch (error) {
-				this.logger.warn('Failed to auto-authenticate with owner user', {
-					error: (error as Error).message,
-				});
-			}
-
-			// Fallback to original auth logic if owner not found
 			const token = req.cookies[AUTH_COOKIE_NAME];
 
 			if (token) {

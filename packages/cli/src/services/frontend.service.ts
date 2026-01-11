@@ -229,8 +229,8 @@ export class FrontendService {
 			defaultLocale: this.globalConfig.defaultLocale,
 			userManagement: {
 				quota: this.license.getUsersLimit(),
-				// AUTH REMOVED: Never show setup page since authentication is disabled
-				showSetupOnFirstLoad: false,
+				// [IMPROVED AUTH] Restored setup page logic for browser authentication
+				showSetupOnFirstLoad: !(await this.ownershipService.hasInstanceOwner()),
 				smtpSetup: this.mailer.isEmailSetUp,
 				authenticationMethod: getCurrentAuthenticationMethod(),
 			},
@@ -390,11 +390,11 @@ export class FrontendService {
 		};
 
 		// refresh user management status
+		// [IMPROVED AUTH] Restored setup page logic for browser authentication
 		Object.assign(this.settings.userManagement, {
 			quota: this.license.getUsersLimit(),
 			authenticationMethod: getCurrentAuthenticationMethod(),
-			// AUTH REMOVED: Never show setup page since authentication is disabled
-			showSetupOnFirstLoad: false,
+			showSetupOnFirstLoad: !(await this.ownershipService.hasInstanceOwner()),
 		});
 
 		let dismissedBanners: string[] = [];

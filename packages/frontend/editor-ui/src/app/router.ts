@@ -981,12 +981,21 @@ router.beforeEach(async (to: RouteLocationNormalized, from, next) => {
 		await initializeAuthenticatedFeatures(undefined, to.name as string);
 
 		/**
-		 * AUTH REMOVED: Skip setup page redirect - authentication is disabled
-		 * The setup page is no longer needed as we auto-authenticate with owner user
+		 * [IMPROVED AUTH] Restored setup page redirect logic for browser authentication
+		 * User should be redirected to setup page if no owner exists
 		 */
-		// Redirect setup page to homepage since auth is removed
-		if (to.name === VIEWS.SETUP) {
-			return next({ name: VIEWS.HOMEPAGE });
+		const settingsStore = useSettingsStore();
+		console.debug(
+			'[IMPROVED AUTH] Checking setup page requirement - showSetupPage:',
+			settingsStore.showSetupPage,
+		);
+		if (settingsStore.showSetupPage) {
+			if (to.name === VIEWS.SETUP) {
+				return next();
+			}
+
+			console.debug('[IMPROVED AUTH] Redirecting to setup page - no instance owner');
+			return next({ name: VIEWS.SETUP });
 		}
 
 		/**

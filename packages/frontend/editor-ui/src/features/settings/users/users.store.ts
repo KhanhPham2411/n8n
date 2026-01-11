@@ -160,22 +160,6 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 			}
 		}
 	};
-	// AUTH REMOVED: Create a default user if API fails
-	const createDefaultUser = async () => {
-		const defaultUser: CurrentUserResponse = {
-			id: 'default-owner',
-			email: 'owner@localhost',
-			firstName: 'Owner',
-			lastName: 'User',
-			role: ROLE.Owner,
-			isOwner: true,
-			isPending: false,
-			mfaEnabled: false,
-			createdAt: new Date().toISOString(),
-			globalScopes: [],
-		};
-		await setCurrentUser(defaultUser);
-	};
 
 	const loginWithCookie = async () => {
 		const user = await usersApi.loginCurrentUser(rootStore.restApiContext);
@@ -192,12 +176,14 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 		}
 
 		try {
+			// [IMPROVED AUTH] Attempt to login with existing cookie
+			console.debug('[IMPROVED AUTH] Attempting to initialize user session with cookie');
 			await loginWithCookie();
 			initialized.value = true;
+			console.debug('[IMPROVED AUTH] User session initialized successfully');
 		} catch (e) {
-			// AUTH REMOVED: If login fails, create a default user so the app works
-			console.warn('Failed to login with cookie, using default user');
-			await createDefaultUser();
+			// [IMPROVED AUTH] Login failed - user will be redirected to signin by the router middleware
+			console.debug('[IMPROVED AUTH] Cookie login failed, user needs to authenticate');
 			initialized.value = true;
 		}
 	};

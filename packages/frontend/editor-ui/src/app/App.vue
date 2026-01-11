@@ -92,7 +92,6 @@ async function handleVSCodeWorkflowSync(messageEvent: MessageEvent) {
 	// Handle object-based messages from VS Code webview
 	if (typeof messageEvent.data === 'object' && messageEvent.data !== null) {
 		if (messageEvent.data.type === 'workflowSync') {
-			console.log('[App.vue] Received workflowSync message');
 			try {
 				const { syncWorkflow, navigateToWorkflow } = useWorkflowSync();
 				const { initializeWorkspace } = useCanvasOperations();
@@ -103,7 +102,6 @@ async function handleVSCodeWorkflowSync(messageEvent: MessageEvent) {
 					throw new Error('Invalid workflow data: missing name');
 				}
 
-				console.log('[App.vue] Syncing workflow:', workflowData.name);
 				const result = await syncWorkflow(workflowData);
 
 				// Navigate to the workflow only if we're not already on it or if it's a new workflow

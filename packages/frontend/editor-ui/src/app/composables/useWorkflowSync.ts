@@ -47,7 +47,6 @@ export function useWorkflowSync() {
 
 			// If node counts differ, there are definitely changes
 			if (existingNodesList.length !== incomingNodesList.length) {
-				console.log('[WorkflowSync] Node count changed');
 				return true;
 			}
 
@@ -105,17 +104,11 @@ export function useWorkflowSync() {
 	 * - If workflow doesn't exist: create it
 	 */
 	async function syncWorkflow(workflowData: WorkflowSyncData): Promise<WorkflowSyncResult> {
-		console.log('[WorkflowSync] Starting sync for workflow:', workflowData.name);
-
 		const existingWorkflow = await findWorkflowByName(workflowData.name);
 
 		if (existingWorkflow) {
-			console.log('[WorkflowSync] Found existing workflow with ID:', existingWorkflow.id);
-
 			// Workflow exists - check for changes
 			if (hasWorkflowChanges(existingWorkflow, workflowData)) {
-				console.log('[WorkflowSync] Updating workflow...');
-
 				// Update existing workflow
 				const updated = await workflowsStore.updateWorkflow(existingWorkflow.id, {
 					nodes: workflowData.nodes,
@@ -124,7 +117,6 @@ export function useWorkflowSync() {
 					pinData: workflowData.pinData,
 				});
 
-				console.log('[WorkflowSync] Workflow updated successfully');
 				return { workflow: updated, action: 'updated' };
 			} else {
 				console.log('[WorkflowSync] No changes detected, using existing workflow');
@@ -150,7 +142,6 @@ export function useWorkflowSync() {
 	 * Navigate to workflow view using globally exposed router
 	 */
 	async function navigateToWorkflow(workflowId: string): Promise<void> {
-		console.log('[WorkflowSync] Navigating to workflow:', workflowId);
 		// Use globally exposed router since useRouter() doesn't work outside setup context
 		const globalRouter = (
 			window as unknown as { __n8n_router__?: { push: (route: unknown) => Promise<void> } }

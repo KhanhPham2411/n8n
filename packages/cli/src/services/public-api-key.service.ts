@@ -96,19 +96,6 @@ export class PublicApiKeyService {
 	}
 
 	private async getUserForApiKey(apiKey: string) {
-		// Log the exact API key being searched
-		this.logger.info('getUserForApiKey: Searching for API key in database', {
-			apiKey, // Full API key for debugging
-			apiKeyLength: apiKey.length,
-			apiKeyCharCodes: apiKey
-				.split('')
-				.slice(0, 20)
-				.map((c) => c.charCodeAt(0)),
-			hasWhitespace: apiKey !== apiKey.trim(),
-			trimmedLength: apiKey.trim().length,
-			apiKeyBytes: Buffer.from(apiKey).toString('hex').substring(0, 40),
-		});
-
 		const user = await this.userRepository.findOne({
 			where: {
 				apiKeys: {
@@ -119,92 +106,13 @@ export class PublicApiKeyService {
 			relations: ['role', 'apiKeys'],
 		});
 
-		if (user) {
-			// Log what API keys the user actually has
-			const userApiKeys = user.apiKeys?.filter((ak) => ak.audience === API_KEY_AUDIENCE) || [];
-			const matchingKey = userApiKeys.find((ak) => ak.apiKey === apiKey);
-
-			// CRITICAL: Verify the key actually matches
+		// Safety check: verify exact match if user is found
+		if (user && user.apiKeys) {
+			const userApiKeys = user.apiKeys.filter((ak) => ak.audience === API_KEY_AUDIENCE);
 			const hasExactMatch = userApiKeys.some((ak) => ak.apiKey === apiKey);
-			const hasTrimmedMatch = userApiKeys.some(
-				(ak) => ak.apiKey === apiKey.trim() || ak.apiKey.trim() === apiKey,
-			);
-
-			this.logger.info('getUserForApiKey: User found - VERIFYING KEY MATCH', {
-				userId: user.id,
-				userEmail: user.email,
-				searchedApiKey: apiKey, // Full searched key
-				searchedApiKeyLength: apiKey.length,
-				searchedApiKeyTrimmed: apiKey.trim(),
-				searchedApiKeyTrimmedLength: apiKey.trim().length,
-				userApiKeyCount: userApiKeys.length,
-				foundMatchingKey: !!matchingKey,
-				hasExactMatch,
-				hasTrimmedMatch,
-				matchingKeyId: matchingKey?.id,
-				matchingKeyLabel: matchingKey?.label,
-				WARNING: !hasExactMatch
-					? 'NO EXACT MATCH FOUND - DATABASE QUERY MAY HAVE ISSUE'
-					: 'Exact match confirmed',
-				userApiKeys: userApiKeys.map((ak) => {
-					const exactMatch = ak.apiKey === apiKey;
-					const trimmedMatch = ak.apiKey === apiKey.trim() || ak.apiKey.trim() === apiKey;
-					return {
-						id: ak.id,
-						label: ak.label,
-						apiKey: ak.apiKey, // Full stored API key for comparison
-						apiKeyLength: ak.apiKey.length,
-						apiKeyTrimmed: ak.apiKey.trim(),
-						apiKeyTrimmedLength: ak.apiKey.trim().length,
-						matches: exactMatch,
-						matchesTrimmed: trimmedMatch,
-						exactMatch,
-						firstChars: ak.apiKey.substring(0, Math.min(20, ak.apiKey.length)),
-						lastChars:
-							ak.apiKey.length > 4 ? '...' + ak.apiKey.substring(ak.apiKey.length - 4) : ak.apiKey,
-						storedKeyBytes: Buffer.from(ak.apiKey).toString('hex').substring(0, 40),
-						searchedKeyBytes: Buffer.from(apiKey).toString('hex').substring(0, 40),
-						bytesMatch: Buffer.from(ak.apiKey).equals(Buffer.from(apiKey)),
-					};
-				}),
-			});
-
-			// If no exact match, this is suspicious - log a warning and return null
 			if (!hasExactMatch) {
-				this.logger.error(
-					'getUserForApiKey: CRITICAL - User found but NO EXACT API KEY MATCH! Rejecting authentication.',
-					{
-						userId: user.id,
-						searchedApiKey: apiKey, // Full searched key
-						searchedApiKeyLength: apiKey.length,
-						userApiKeys: userApiKeys.map((ak) => ({
-							id: ak.id,
-							label: ak.label,
-							apiKey: ak.apiKey, // Full stored key
-							apiKeyLength: ak.apiKey.length,
-						})),
-						possibleIssue: 'Database query may be too permissive or there is a bug in the lookup',
-						action: 'Returning null to reject authentication',
-					},
-				);
-				// CRITICAL: Return null if no exact match to prevent unauthorized access
 				return null;
 			}
-
-			this.logger.info(
-				'getUserForApiKey: Exact API key match confirmed - authentication can proceed',
-				{
-					userId: user.id,
-					matchingKeyId: matchingKey?.id,
-					matchingKeyLabel: matchingKey?.label,
-				},
-			);
-		} else {
-			this.logger.warn('getUserForApiKey: No user found for API key', {
-				searchedApiKey: apiKey, // Full searched key
-				searchedApiKeyLength: apiKey.length,
-				searchedKeyFirstChars: apiKey.substring(0, Math.min(20, apiKey.length)),
-			});
 		}
 
 		return user;
@@ -235,157 +143,25 @@ export class PublicApiKeyService {
 			schema: OpenAPIV3.ApiKeySecurityScheme,
 		): Promise<boolean> => {
 			const providedApiKey = req.headers[schema.name.toLowerCase()] as string;
-			const requestPath = req.path || req.url;
-			const requestMethod = req.method;
-			const redactedApiKey = providedApiKey ? this.redactApiKey(providedApiKey) : undefined;
-			const userBeforeValidation = req.user;
-
-			this.logger.info('Starting API key validation - STEP BY STEP', {
-				path: requestPath,
-				method: requestMethod,
-				apiVersion: version,
-				apiKey: providedApiKey, // Full API key for debugging
-				apiKeyRedacted: redactedApiKey,
-				apiKeyLength: providedApiKey?.length || 0,
-				isLegacyKey: providedApiKey?.startsWith(PREFIX_LEGACY_API_KEY) || false,
-				hadUserBeforeValidation: !!userBeforeValidation,
-				previousUserId: userBeforeValidation?.id,
-			});
-
-			if (!providedApiKey) {
-				this.logger.warn('STEP 1: No API key provided in request - VALIDATION FAILED', {
-					path: requestPath,
-					method: requestMethod,
-					headerName: schema.name.toLowerCase(),
-					headerValue: req.headers[schema.name.toLowerCase()],
-					allHeadersWithKey: Object.keys(req.headers).filter((k) =>
-						k.toLowerCase().includes('key'),
-					),
-				});
-				return false;
-			}
-
-			this.logger.info('STEP 2: Looking up user for API key in database', {
-				path: requestPath,
-				method: requestMethod,
-				apiKey: providedApiKey, // Full API key for debugging
-				apiKeyRedacted: redactedApiKey,
-				apiKeyLength: providedApiKey.length,
-			});
 
 			const user = await this.getUserForApiKey(providedApiKey);
 
-			if (!user) {
-				this.logger.warn(
-					'STEP 2 RESULT: No user found for API key in database - VALIDATION FAILED',
-					{
-						path: requestPath,
-						method: requestMethod,
-						apiKey: providedApiKey, // Full API key for debugging
-						apiKeyRedacted: redactedApiKey,
-						apiKeyLength: providedApiKey.length,
-						apiKeyFirstChars: providedApiKey.substring(0, Math.min(20, providedApiKey.length)),
-					},
-				);
-				return false;
-			}
+			if (!user) return false;
 
-			this.logger.info('STEP 2 RESULT: User found in database', {
-				path: requestPath,
-				method: requestMethod,
-				userId: user.id,
-				userEmail: user.email,
-				userDisabled: user.disabled,
-				userRole: user.role?.slug,
-				apiKey: providedApiKey, // Full API key for debugging
-				apiKeyRedacted: redactedApiKey,
-			});
-
-			if (user.disabled) {
-				this.logger.warn('STEP 3: User account is disabled - VALIDATION FAILED', {
-					path: requestPath,
-					method: requestMethod,
-					userId: user.id,
-					userEmail: user.email,
-					apiKey: providedApiKey, // Full API key for debugging
-					apiKeyRedacted: redactedApiKey,
-				});
-				return false;
-			}
+			if (user.disabled) return false;
 
 			// Legacy API keys are not JWTs and do not need to be verified.
 			if (!providedApiKey.startsWith(PREFIX_LEGACY_API_KEY)) {
-				this.logger.info('STEP 4: Verifying JWT token (not legacy key)', {
-					path: requestPath,
-					method: requestMethod,
-					userId: user.id,
-					apiKey: providedApiKey, // Full API key for debugging
-					apiKeyRedacted: redactedApiKey,
-					expectedIssuer: API_KEY_ISSUER,
-					expectedAudience: API_KEY_AUDIENCE,
-				});
-
 				try {
-					const decoded = this.jwtService.verify(providedApiKey, {
+					this.jwtService.verify(providedApiKey, {
 						issuer: API_KEY_ISSUER,
 						audience: API_KEY_AUDIENCE,
 					});
-
-					this.logger.info('STEP 4 RESULT: JWT verification successful', {
-						path: requestPath,
-						method: requestMethod,
-						userId: user.id,
-						apiKey: providedApiKey, // Full API key for debugging
-						apiKeyRedacted: redactedApiKey,
-						jwtIssuer: (decoded as any).iss,
-						jwtAudience: (decoded as any).aud,
-						jwtSubject: (decoded as any).sub,
-						jwtExpiration: (decoded as any).exp,
-					});
 				} catch (e) {
-					if (e instanceof TokenExpiredError) {
-						this.logger.warn('STEP 4 RESULT: API key JWT token expired - VALIDATION FAILED', {
-							path: requestPath,
-							method: requestMethod,
-							userId: user.id,
-							apiKey: providedApiKey, // Full API key for debugging
-							apiKeyRedacted: redactedApiKey,
-							expiredAt: (e as TokenExpiredError).expiredAt,
-							currentTime: Math.floor(Date.now() / 1000),
-						});
-						return false;
-					}
-					this.logger.warn('STEP 4 RESULT: JWT verification failed - VALIDATION FAILED', {
-						path: requestPath,
-						method: requestMethod,
-						userId: user.id,
-						apiKey: providedApiKey, // Full API key for debugging
-						apiKeyRedacted: redactedApiKey,
-						error: (e as Error).message,
-						errorName: (e as Error).name,
-						errorStack: (e as Error).stack,
-					});
+					if (e instanceof TokenExpiredError) return false;
 					throw e;
 				}
-			} else {
-				this.logger.info('STEP 4: Legacy API key detected, skipping JWT verification', {
-					path: requestPath,
-					method: requestMethod,
-					userId: user.id,
-					apiKey: providedApiKey, // Full API key for debugging
-					apiKeyRedacted: redactedApiKey,
-				});
 			}
-
-			this.logger.info('STEP 5: Setting user on request object', {
-				path: requestPath,
-				method: requestMethod,
-				userId: user.id,
-				userEmail: user.email,
-				hadUserBefore: !!userBeforeValidation,
-				previousUserId: userBeforeValidation?.id,
-				apiKey: providedApiKey, // Full API key for debugging
-			});
 
 			this.eventService.emit('public-api-invoked', {
 				userId: user.id,
@@ -395,17 +171,6 @@ export class PublicApiKeyService {
 			});
 
 			req.user = user;
-
-			this.logger.info('STEP 6: API key validation SUCCESSFUL - returning true', {
-				path: requestPath,
-				method: requestMethod,
-				userId: user.id,
-				userEmail: user.email,
-				apiKey: providedApiKey, // Full API key for debugging
-				apiKeyRedacted: redactedApiKey,
-				userSetOnRequest: !!req.user,
-				requestUserId: req.user?.id,
-			});
 
 			// TODO: ideally extract that to a dedicated middleware, but express-openapi-validator
 			// does not support middleware between authentication and operators

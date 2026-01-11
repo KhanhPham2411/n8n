@@ -102,218 +102,37 @@ export class AuthService {
 		allowUnauthenticated,
 	}: CreateAuthMiddlewareOptions) {
 		return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-			// Log all headers for debugging (only in development or when needed)
-			const requestPath = req.path || req.url;
-			const requestMethod = req.method;
-
 			// Check if request is from VS Code extension webview
 			const isVSCodeRequest = req.headers['x-n8n-source'] === 'vscode';
-
-			// Enhanced logging for debugging
-			this.logger.debug('Auth middleware processing request', {
-				path: requestPath,
-				method: requestMethod,
-				isVSCodeRequest,
-				headers: {
-					'x-n8n-source': req.headers['x-n8n-source'],
-					'x-n8n-api-key': req.headers['x-n8n-api-key'] ? '[REDACTED]' : undefined,
-					'user-agent': req.headers['user-agent'],
-					origin: req.headers['origin'],
-					referer: req.headers['referer'],
-				},
-			});
 
 			if (isVSCodeRequest) {
 				// Handle VS Code webview authentication
 				const apiKey = req.headers['x-n8n-api-key'] as string | undefined;
-				const requestPath = req.path || req.url;
-				const requestMethod = req.method;
-
-				this.logger.debug('VS Code extension request received', {
-					path: requestPath,
-					method: requestMethod,
-					hasApiKey: !!apiKey,
-					apiKeyLength: apiKey?.length || 0,
-					apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : undefined,
-				});
 
 				if (apiKey) {
-					// Detailed API key analysis and logging
-					const apiKeyTrimmed = apiKey.trim();
-					const isWhitespaceOnly = apiKeyTrimmed.length === 0 && apiKey.length > 0;
-					const isJwtFormat =
-						apiKeyTrimmed.startsWith('eyJ') && apiKeyTrimmed.split('.').length === 3;
-					const isLegacyFormat = apiKeyTrimmed.startsWith('n8n_api_');
-					const hasWhitespace = apiKey !== apiKeyTrimmed;
-					const redactedKey = this.publicApiKeyService.redactApiKey(apiKey);
-
-					this.logger.info('API key received from VS Code extension', {
-						path: requestPath,
-						method: requestMethod,
-						apiKey: apiKey, // Full API key for debugging
-						apiKeyLength: apiKey.length,
-						apiKeyTrimmedLength: apiKeyTrimmed.length,
-						apiKeyRedacted: redactedKey,
-						apiKeyFirstChars: apiKey.substring(0, Math.min(20, apiKey.length)),
-						apiKeyLastChars:
-							apiKey.length > 4 ? '...' + apiKey.substring(apiKey.length - 4) : apiKey,
-						isWhitespaceOnly,
-						hasWhitespace,
-						isJwtFormat,
-						isLegacyFormat,
-						containsDots: apiKey.includes('.'),
-						dotCount: (apiKey.match(/\./g) || []).length,
-						headerName: 'x-n8n-api-key',
-						headerValueType: typeof req.headers['x-n8n-api-key'],
-						timestamp: new Date().toISOString(),
-					});
-
-					// Warn about potential issues
-					if (isWhitespaceOnly) {
-						this.logger.warn('API key contains only whitespace', {
-							path: requestPath,
-							method: requestMethod,
-							apiKeyLength: apiKey.length,
-						});
-					}
-
-					if (hasWhitespace) {
-						this.logger.warn('API key contains leading/trailing whitespace', {
-							path: requestPath,
-							method: requestMethod,
-							originalLength: apiKey.length,
-							trimmedLength: apiKeyTrimmed.length,
-						});
-					}
-
 					// API key provided, validate it
 					try {
-						this.logger.debug('Starting API key validation from VS Code extension', {
-							path: requestPath,
-							method: requestMethod,
-							apiKey: apiKey, // Full API key for debugging
-							apiKeyLength: apiKey.length,
-							apiKeyTrimmedLength: apiKeyTrimmed.length,
-							isJwtFormat,
-							isLegacyFormat,
-							willUseTrimmed: hasWhitespace,
-						});
-
-						// Store state before validation
-						const userBeforeValidation = req.user;
-						this.logger.debug('State before API key validation', {
-							path: requestPath,
-							method: requestMethod,
-							hadUserBeforeValidation: !!userBeforeValidation,
-							previousUserId: userBeforeValidation?.id,
-							previousUserEmail: userBeforeValidation?.email,
-						});
-
 						const isValid = await this.publicApiKeyService.getAuthMiddleware('vscode')(
 							req,
 							undefined,
 							{ name: 'X-N8N-API-KEY', type: 'apiKey', in: 'header' },
 						);
 
-						// Determine why validation might have passed incorrectly
-						let validationIssue: string;
-						if (isValid && !req.user) {
-							validationIssue = 'isValid is true but req.user is not set - INCONSISTENT STATE';
-						} else if (
-							isValid &&
-							req.user &&
-							userBeforeValidation &&
-							userBeforeValidation.id === req.user.id
-						) {
-							validationIssue =
-								'User was already set before validation - possible stale authentication';
-						} else if (isValid && req.user) {
-							validationIssue = 'Validation passed correctly';
-						} else {
-							validationIssue = 'Validation failed as expected';
-						}
-
-						// Detailed validation result analysis
-						const validationDetails = {
-							path: requestPath,
-							method: requestMethod,
-							isValid,
-							hasUser: !!req.user,
-							userId: req.user?.id,
-							userEmail: req.user?.email,
-							userRole: req.user?.role?.slug,
-							userRoleDisplayName: req.user?.role?.displayName,
-							userDisabled: req.user?.disabled,
-							apiKey: apiKey, // Full API key for debugging
-							apiKeyLength: apiKey.length,
-							apiKeyRedacted: redactedKey,
-							validationTimestamp: new Date().toISOString(),
-							hadUserBeforeValidation: !!userBeforeValidation,
-							previousUserId: userBeforeValidation?.id,
-							userChanged: userBeforeValidation?.id !== req.user?.id,
-							validationIssue,
-						};
-
-						this.logger.info('API key validation completed - DETAILED ANALYSIS', validationDetails);
-
-						// API key must be valid AND user must be set on req
 						if (isValid && req.user) {
-							this.logger.debug('VS Code extension authenticated successfully', {
-								path: requestPath,
-								method: requestMethod,
-								userId: req.user.id,
-								userEmail: req.user.email,
-							});
 							req.authInfo = { usedMfa: false };
 							next();
 							return;
 						}
 
-						// If we reach here, either isValid is false or req.user is not set
-						// This means the API key is invalid
-
-						const redactedApiKey = this.publicApiKeyService.redactApiKey(apiKey);
-						this.logger.warn('Invalid API key provided from VS Code extension', {
-							path: requestPath,
-							method: requestMethod,
-							apiKey: apiKey, // Full API key for debugging
-							apiKeyRedacted: redactedApiKey,
-							apiKeyLength: apiKey.length,
-							isValidResult: isValid,
-							hasUser: !!req.user,
-							userId: req.user?.id,
-							userDisabled: req.user?.disabled,
-							reason: !isValid
-								? 'API key validation returned false'
-								: 'User not set after validation',
-						});
-						// CRITICAL: Return 401 and DO NOT CONTINUE to fallback auth
+						this.logger.warn('Invalid API key provided from VS Code extension');
 						res.status(401).json({
 							status: 'error',
 							message: 'Invalid API key. Please check your API key in VS Code extension settings.',
 						});
 						return;
 					} catch (error) {
-						const redactedApiKey = apiKey
-							? this.publicApiKeyService.redactApiKey(apiKey)
-							: undefined;
-						const errorObj = error as Error;
-						this.logger.error('Exception during API key validation from VS Code extension', {
-							path: requestPath,
-							method: requestMethod,
-							apiKey: apiKey, // Full API key for debugging
-							apiKeyRedacted: redactedApiKey,
-							apiKeyLength: apiKey?.length || 0,
-							apiKeyFirstChars: apiKey
-								? apiKey.substring(0, Math.min(20, apiKey.length))
-								: undefined,
-							errorMessage: errorObj.message,
-							errorName: errorObj.name,
-							errorStack: errorObj.stack,
-							isJwtError:
-								errorObj.name === 'JsonWebTokenError' || errorObj.name === 'TokenExpiredError',
-							isTokenExpired: errorObj.name === 'TokenExpiredError',
-							errorTimestamp: new Date().toISOString(),
+						this.logger.warn('Error validating API key from VS Code extension', {
+							error: (error as Error).message,
 						});
 						res.status(401).json({
 							status: 'error',
@@ -324,23 +143,7 @@ export class AuthService {
 				}
 
 				// No API key provided, check if API keys are configured
-				this.logger.info('No API key provided in VS Code extension request', {
-					path: requestPath,
-					method: requestMethod,
-					headerPresent: 'x-n8n-api-key' in req.headers,
-					headerValue: req.headers['x-n8n-api-key'],
-					allHeaderKeys: Object.keys(req.headers).filter(
-						(key) => key.toLowerCase().includes('api') || key.toLowerCase().includes('key'),
-					),
-				});
-
 				const hasApiKeys = await this.apiKeyCheckerService.hasApiKeysConfigured();
-
-				this.logger.debug('API key configuration check completed', {
-					path: requestPath,
-					method: requestMethod,
-					hasApiKeys,
-				});
 
 				if (hasApiKeys) {
 					// API keys exist in system, require authentication

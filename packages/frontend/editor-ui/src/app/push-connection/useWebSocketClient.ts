@@ -56,6 +56,10 @@ export const useWebSocketClient = <T>(options: UseWebSocketClientOptions<T>) => 
 		console.warn('[WebSocketClient] Connection error:', error);
 	};
 
+	// Check if we're in VS Code webview context - WebSocket often has issues there
+	const isVSCodeWebview = () =>
+		typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:');
+
 	const disconnect = () => {
 		if (socket.value) {
 			stopHeartbeat();
@@ -71,9 +75,18 @@ export const useWebSocketClient = <T>(options: UseWebSocketClientOptions<T>) => 
 	};
 
 	const connect = () => {
+		// Skip WebSocket in VS Code webview context - EventSource works better there
+		if (isVSCodeWebview()) {
+			console.log(
+				'[WebSocketClient] Skipping WebSocket connection in VS Code webview context - use EventSource instead',
+			);
+			return;
+		}
+
 		// Ensure we disconnect any existing connection
 		disconnect();
 
+		console.log('[WebSocketClient] Connecting to:', options.url);
 		socket.value = new WebSocket(options.url);
 		socket.value.addEventListener('open', onConnected);
 		socket.value.addEventListener('message', onMessage);
@@ -85,7 +98,10 @@ export const useWebSocketClient = <T>(options: UseWebSocketClientOptions<T>) => 
 	const reconnectTimer = useReconnectTimer({
 		onAttempt: connect,
 		onAttemptScheduled: (delay) => {
-			console.log(`[WebSocketClient] Attempting to reconnect in ${delay}ms`);
+			// Don't log reconnect attempts in VS Code webview since we skip them anyway
+			if (!isVSCodeWebview()) {
+				console.log(`[WebSocketClient] Attempting to reconnect in ${delay}ms`);
+			}
 		},
 	});
 

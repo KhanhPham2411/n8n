@@ -50,14 +50,72 @@ export const usePushConnectionStore = defineStore(STORES.PUSH, () => {
 		const restUrl = rootStore.restUrl;
 		const url = `/push?pushRef=${rootStore.pushRef}`;
 
+		console.log('[PushConnection] getConnectionUrl called:', {
+			restUrl,
+			pushRef: rootStore.pushRef,
+			useWebSockets: useWebSockets.value,
+			windowOrigin: typeof window !== 'undefined' ? window.location?.origin : 'N/A',
+		});
+
 		if (useWebSockets.value) {
-			const { protocol, host } = window.location;
-			const baseUrl = restUrl.startsWith('http')
-				? restUrl.replace(/^http/, 'ws')
-				: `${protocol === 'https:' ? 'wss' : 'ws'}://${host + restUrl}`;
-			return `${baseUrl}${url}`;
+			// Check if we're in VS Code webview context
+			const isVSCodeWebview =
+				typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:');
+
+			console.log('[PushConnection] WebSocket mode - isVSCodeWebview:', isVSCodeWebview);
+
+			let baseUrl: string;
+
+			if (restUrl.startsWith('http')) {
+				// restUrl already has full URL, convert http(s) to ws(s)
+				baseUrl = restUrl.replace(/^http/, 'ws');
+				console.log('[PushConnection] Using restUrl with http prefix, converted to ws:', baseUrl);
+			} else if (isVSCodeWebview) {
+				// In VS Code webview, use __API_BASE_URL__ (injected by extension) if available
+				const apiBaseUrl =
+					(window as unknown as { __API_BASE_URL__?: string }).__API_BASE_URL__ ||
+					'http://localhost:5888';
+				console.log('[PushConnection] VS Code webview detected - __API_BASE_URL__:', apiBaseUrl);
+				// Convert http(s) URL to ws(s) URL
+				baseUrl = apiBaseUrl.replace(/^http/, 'ws') + restUrl;
+				console.log('[PushConnection] Constructed WebSocket baseUrl from apiBaseUrl:', baseUrl);
+			} else {
+				// Standard browser context, use window.location
+				const { protocol, host } = window.location;
+				baseUrl = `${protocol === 'https:' ? 'wss' : 'ws'}://${host + restUrl}`;
+				console.log('[PushConnection] Standard browser mode - using window.location:', {
+					protocol,
+					host,
+					baseUrl,
+				});
+			}
+
+			const finalUrl = `${baseUrl}${url}`;
+			console.log('[PushConnection] Final WebSocket URL:', finalUrl);
+			return finalUrl;
 		} else {
-			return `${restUrl}${url}`;
+			// EventSource path - also needs to handle VS Code webview context
+			const isVSCodeWebview =
+				typeof window !== 'undefined' && window.location?.origin?.startsWith('vscode-webview:');
+
+			console.log('[PushConnection] EventSource mode - isVSCodeWebview:', isVSCodeWebview);
+
+			let finalUrl: string;
+			if (restUrl.startsWith('http')) {
+				finalUrl = `${restUrl}${url}`;
+				console.log('[PushConnection] EventSource using restUrl with http prefix:', finalUrl);
+			} else if (isVSCodeWebview) {
+				const apiBaseUrl =
+					(window as unknown as { __API_BASE_URL__?: string }).__API_BASE_URL__ ||
+					'http://localhost:5888';
+				console.log('[PushConnection] VS Code webview detected - __API_BASE_URL__:', apiBaseUrl);
+				finalUrl = `${apiBaseUrl}${restUrl}${url}`;
+				console.log('[PushConnection] Constructed EventSource URL from apiBaseUrl:', finalUrl);
+			} else {
+				finalUrl = `${restUrl}${url}`;
+				console.log('[PushConnection] Standard browser EventSource URL:', finalUrl);
+			}
+			return finalUrl;
 		}
 	};
 

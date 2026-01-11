@@ -449,7 +449,11 @@ const canUserRegisterCommunityPlus = computed(
 );
 
 const showRegisteredCommunityCTA = computed(
-	() => isSelfHostedDeployment.value && !foldersEnabled.value && canUserRegisterCommunityPlus.value,
+	() =>
+		isSelfHostedDeployment.value &&
+		!foldersEnabled.value &&
+		canUserRegisterCommunityPlus.value &&
+		!settingsStore.isLocalMode,
 );
 
 const showAIStarterCollectionCallout = computed(() => {

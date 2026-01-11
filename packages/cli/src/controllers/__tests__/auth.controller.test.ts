@@ -1,6 +1,7 @@
 import type { LoginRequestDto } from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
 import { mockInstance } from '@n8n/backend-test-utils';
+import { GlobalConfig } from '@n8n/config';
 import type { AuthenticatedRequest, User } from '@n8n/db';
 import { UserRepository } from '@n8n/db';
 import { Container } from '@n8n/di';
@@ -40,6 +41,9 @@ describe('AuthController', () => {
 	mockInstance(UserRepository);
 	mockInstance(PostHogClient);
 	mockInstance(License);
+	mockInstance(GlobalConfig, {
+		license: { isLocal: false, localAdminEmail: 'admin@n8n.local' },
+	});
 	const ldapService = mockInstance(LdapService);
 	const controller = Container.get(AuthController);
 	const userService = Container.get(UserService);

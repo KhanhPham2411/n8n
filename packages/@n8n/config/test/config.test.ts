@@ -311,6 +311,8 @@ describe('GlobalConfig', () => {
 			gracefulShutdownTimeout: 30,
 		},
 		license: {
+			isLocal: false,
+			localAdminEmail: 'admin@n8n.local',
 			serverUrl: 'https://license.n8n.io/v1',
 			autoRenewalEnabled: true,
 			detachFloatingOnShutdown: true,

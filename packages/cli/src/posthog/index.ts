@@ -15,6 +15,11 @@ export class PostHogClient {
 	) {}
 
 	async init() {
+		// Skip PostHog initialization in local mode (N8N_LOCAL=true)
+		if (this.globalConfig.license.isLocal) {
+			return;
+		}
+
 		const { enabled, posthogConfig } = this.globalConfig.diagnostics;
 		if (!enabled) {
 			return;

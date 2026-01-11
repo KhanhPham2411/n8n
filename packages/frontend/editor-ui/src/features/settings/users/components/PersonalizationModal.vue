@@ -94,6 +94,7 @@ import { useExternalHooks } from '@/app/composables/useExternalHooks';
 import { useI18n } from '@n8n/i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useUIStore } from '@/app/stores/ui.store';
+import { useSettingsStore } from '@/app/stores/settings.store';
 import { getResourcePermissions } from '@n8n/permissions';
 
 import { N8nButton, N8nFormInputs } from '@n8n/design-system';
@@ -110,6 +111,7 @@ const posthogStore = usePostHog();
 const route = useRoute();
 const router = useRouter();
 const uiStore = useUIStore();
+const settingsStore = useSettingsStore();
 
 const formValues = ref<Record<string, string>>({});
 const isSaving = ref(false);
@@ -567,7 +569,7 @@ const closeCallback = () => {
 const closeDialog = () => {
 	modalBus.emit('close');
 
-	if (userPermissions.value.community.register) {
+	if (userPermissions.value.community.register && !settingsStore.isLocalMode) {
 		uiStore.openModalWithData({
 			name: COMMUNITY_PLUS_ENROLLMENT_MODAL,
 			data: {

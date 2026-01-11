@@ -296,6 +296,10 @@ export class Start extends BaseCommand<z.infer<typeof flagsSchema>> {
 			config.set(setting.key, jsonParse(setting.value, { fallbackValue: setting.value }));
 		});
 
+		// Ensure local admin user exists when N8N_LOCAL mode is enabled
+		const { LocalAdminService } = await import('@/services/local-admin.service');
+		await Container.get(LocalAdminService).ensureLocalAdminExists();
+
 		const { type: dbType } = this.globalConfig.database;
 		if (dbType === 'sqlite') {
 			const shouldRunVacuum = this.globalConfig.database.sqlite.executeVacuumOnStartup;

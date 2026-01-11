@@ -45,6 +45,9 @@ export class TelemetryEventRelay extends EventRelay {
 	}
 
 	async init() {
+		// Skip telemetry event relay in local mode (N8N_LOCAL=true)
+		if (this.globalConfig.license.isLocal) return;
+
 		if (!this.globalConfig.diagnostics.enabled) return;
 
 		await this.telemetry.init();

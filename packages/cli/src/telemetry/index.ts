@@ -64,6 +64,12 @@ export class Telemetry {
 	) {}
 
 	async init() {
+		// Skip telemetry initialization in local mode (N8N_LOCAL=true)
+		if (this.globalConfig.license.isLocal) {
+			this.logger.info('N8N_LOCAL mode enabled, skipping telemetry initialization');
+			return;
+		}
+
 		const { enabled, backendConfig } = this.globalConfig.diagnostics;
 		if (enabled) {
 			const [key, dataPlaneUrl] = backendConfig.split(';');

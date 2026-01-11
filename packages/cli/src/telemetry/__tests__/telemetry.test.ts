@@ -64,6 +64,31 @@ describe('Telemetry', () => {
 		await telemetry.stopTracking();
 	});
 
+	describe('init', () => {
+		it('should not initialize telemetry in local mode', async () => {
+			const localModeConfig = mock<GlobalConfig>({
+				diagnostics: { enabled: true },
+				logging: { level: 'info', outputs: ['console'] },
+				license: { isLocal: true },
+			});
+
+			const localTelemetry = new Telemetry(
+				mock(),
+				mock(),
+				mock(),
+				instanceSettings,
+				mock(),
+				localModeConfig,
+				mock(),
+			);
+
+			await localTelemetry.init();
+
+			// @ts-expect-error Accessing private property
+			expect(localTelemetry.rudderStack).toBeUndefined();
+		});
+	});
+
 	describe('trackWorkflowExecution', () => {
 		beforeEach(() => {
 			jest.setSystemTime(testDateTime);

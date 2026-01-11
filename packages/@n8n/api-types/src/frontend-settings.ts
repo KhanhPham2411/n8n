@@ -184,6 +184,8 @@ export interface FrontendSettings {
 		planName?: string;
 		consumerId: string;
 		environment: 'development' | 'production' | 'staging';
+		/** When true, all enterprise features are enabled without a license (N8N_LOCAL mode) */
+		isLocal: boolean;
 	};
 	variables: {
 		limit: number;

@@ -54,6 +54,13 @@ export class License implements LicenseProvider {
 		forceRecreate = false,
 		isCli = false,
 	}: { forceRecreate?: boolean; isCli?: boolean } = {}) {
+		// Skip license manager initialization in local mode (N8N_LOCAL=true)
+		// In local mode, all enterprise features are enabled without connecting to license server
+		if (this.globalConfig.license.isLocal) {
+			this.logger.info('N8N_LOCAL mode enabled, skipping license manager initialization');
+			return;
+		}
+
 		if (this.manager && !forceRecreate) {
 			this.logger.warn('License manager already initialized or shutting down');
 			return;
@@ -250,6 +257,10 @@ export class License implements LicenseProvider {
 	}
 
 	isLicensed(feature: BooleanLicenseFeature) {
+		// When N8N_LOCAL is true, all enterprise features are enabled
+		if (this.globalConfig.license.isLocal) {
+			return true;
+		}
 		return this.manager?.hasFeatureEnabled(feature) ?? false;
 	}
 
@@ -378,6 +389,10 @@ export class License implements LicenseProvider {
 	}
 
 	getValue<T extends keyof FeatureReturnType>(feature: T): FeatureReturnType[T] {
+		// When N8N_LOCAL is true, return unlimited for all quota features
+		if (this.globalConfig.license.isLocal) {
+			return UNLIMITED_LICENSE_QUOTA as FeatureReturnType[T];
+		}
 		return this.manager?.getFeatureValue(feature) as FeatureReturnType[T];
 	}
 

@@ -54,6 +54,9 @@ export const useSettingsStore = defineStore(STORES.SETTINGS, () => {
 
 	const consumerId = computed(() => settings.value?.license.consumerId);
 
+	/** When true, all enterprise features are enabled without a license (N8N_LOCAL mode) */
+	const isLocalMode = computed(() => settings.value?.license.isLocal ?? false);
+
 	const binaryDataMode = computed(() => settings.value?.binaryDataMode);
 
 	const pruning = computed(() => settings.value?.pruning);
@@ -336,6 +339,7 @@ export const useSettingsStore = defineStore(STORES.SETTINGS, () => {
 		databaseType,
 		planName,
 		consumerId,
+		isLocalMode,
 		binaryDataMode,
 		pruning,
 		security,

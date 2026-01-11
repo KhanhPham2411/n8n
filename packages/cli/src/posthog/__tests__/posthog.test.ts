@@ -50,6 +50,29 @@ describe('PostHog', () => {
 		expect(PostHog.prototype.capture).not.toHaveBeenCalled();
 	});
 
+	it('does not initialize or track in local mode (N8N_LOCAL=true)', async () => {
+		const localModeConfig = mock<GlobalConfig>({
+			logging: { level: 'debug' },
+			diagnostics: {
+				enabled: true,
+				posthogConfig: { apiKey, apiHost },
+			},
+			license: { isLocal: true },
+		});
+
+		const ph = new PostHogClient(instanceSettings, localModeConfig);
+		await ph.init();
+
+		ph.track({
+			userId: 'test',
+			event: 'test',
+			properties: {},
+		});
+
+		expect(PostHog.prototype.constructor).not.toHaveBeenCalled();
+		expect(PostHog.prototype.capture).not.toHaveBeenCalled();
+	});
+
 	it('captures PostHog events', async () => {
 		const event = 'test event';
 		const properties = {

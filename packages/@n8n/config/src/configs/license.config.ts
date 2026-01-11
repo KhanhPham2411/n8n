@@ -2,6 +2,14 @@ import { Config, Env } from '../decorators';
 
 @Config
 export class LicenseConfig {
+	/** Local mode - when enabled, all enterprise features are unlocked without a license. */
+	@Env('N8N_LOCAL')
+	isLocal: boolean = false;
+
+	/** Email address for the local admin user in N8N_LOCAL mode. */
+	@Env('N8N_LOCAL_ADMIN')
+	localAdminEmail: string = 'admin@n8n.local';
+
 	/** License server URL to retrieve license. */
 	@Env('N8N_LICENSE_SERVER_URL')
 	serverUrl: string = 'https://license.n8n.io/v1';

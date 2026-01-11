@@ -98,29 +98,13 @@ export class AuthService {
 		allowUnauthenticated,
 	}: CreateAuthMiddlewareOptions) {
 		return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-			// AUTO-AUTH: Skip authentication and automatically use the owner user
-			// This removes the need for login while keeping all functionality working
-			try {
-				const owner = await this.userRepository.findOne({
-					where: { role: { slug: GLOBAL_OWNER_ROLE.slug } },
-					relations: ['role'],
-				});
-
-				if (owner) {
-					req.user = owner;
-					req.authInfo = {
-						usedMfa: false,
-					};
-					next();
-					return;
-				}
-			} catch (error) {
-				this.logger.warn('Failed to auto-authenticate with owner user', {
-					error: (error as Error).message,
-				});
+			// CUSTOM: Auto-authentication for local development (N8N_LOCAL mode)
+			// This check is added before the standard auth flow for easy merging
+			if (await this.tryAutoAuthenticateLocalMode(req)) {
+				return next();
 			}
 
-			// Fallback to original auth logic if owner not found
+			// ORIGINAL AUTH FLOW FROM HERE (unchanged for easy merging)
 			const token = req.cookies[AUTH_COOKIE_NAME];
 
 			if (token) {
@@ -137,7 +121,16 @@ export class AuthService {
 							// If the user has MFA enforced, but did not use it during authentication, we need to throw an error
 							throw new AuthError('MFA not used during authentication');
 						} else {
+							// User doesn't have MFA enabled, but MFA is enforced
+							// They need to set up MFA before accessing most endpoints
 							if (allowUnauthenticated) {
+								// Don't set req.user to avoid giving full access to semi-authenticated users
+								// Instead, set a flag in authInfo to indicate MFA enrollment is required
+								// This allows endpoints to handle this state appropriately (e.g., return public settings)
+								req.authInfo = {
+									usedMfa,
+									mfaEnrollmentRequired: true,
+								};
 								return next();
 							}
 
@@ -167,6 +160,55 @@ export class AuthService {
 			else if (shouldSkipAuth) next();
 			else res.status(401).json({ status: 'error', message: 'Unauthorized' });
 		};
+	}
+
+	/**
+	 * CUSTOM: Auto-authenticate for local development mode
+	 * Tries local admin first (if N8N_LOCAL is enabled), then falls back to owner user
+	 * Returns true if authentication was successful, false otherwise
+	 */
+	private async tryAutoAuthenticateLocalMode(req: AuthenticatedRequest): Promise<boolean> {
+		// Try local admin first (if N8N_LOCAL mode is enabled)
+		if (this.globalConfig.license.isLocal) {
+			try {
+				const localAdmin = await this.userRepository.findOne({
+					where: { email: this.globalConfig.license.localAdminEmail },
+					relations: ['role'],
+				});
+
+				if (localAdmin) {
+					req.user = localAdmin;
+					req.authInfo = { usedMfa: false };
+					return true;
+				}
+			} catch (error) {
+				this.logger.warn(
+					`Failed to auto-authenticate with ${this.globalConfig.license.localAdminEmail} user`,
+					{ error: (error as Error).message },
+				);
+			}
+		}
+
+		// Fallback to owner user
+		try {
+			const owner = await this.userRepository.findOne({
+				where: { role: { slug: GLOBAL_OWNER_ROLE.slug } },
+				relations: ['role'],
+			});
+
+			if (owner) {
+				req.user = owner;
+				req.authInfo = { usedMfa: false };
+				return true;
+			}
+		} catch (error) {
+			this.logger.warn('Failed to auto-authenticate with owner user', {
+				error: (error as Error).message,
+				stack: (error as Error).stack,
+			});
+		}
+
+		return false;
 	}
 
 	clearCookie(res: Response) {

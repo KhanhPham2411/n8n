@@ -48,7 +48,7 @@ describe('FrontendService', () => {
 		workflows: { callerPolicyDefaultOption: 'workflowsFromSameOwner' },
 		executions: { pruneData: false, pruneDataMaxAge: 336, pruneDataMaxCount: 10000 },
 		hideUsagePage: false,
-		license: { tenantId: 1 },
+		license: { tenantId: 1, isLocal: false },
 		mfa: { enabled: false },
 		deployment: { type: 'default' },
 		workflowHistory: { pruneTime: 24 },
@@ -181,6 +181,7 @@ describe('FrontendService', () => {
 				ownershipService,
 			),
 			license,
+			globalConfig,
 		};
 	};
 
@@ -364,6 +365,53 @@ describe('FrontendService', () => {
 			const settings = await service.getSettings();
 
 			expect(settings.aiBuilder.enabled).toBe(false);
+		});
+	});
+
+	describe('showNonProdBanner setting', () => {
+		it('should set showNonProdBanner to false in local mode even if license has the feature', async () => {
+			const { service, license, globalConfig } = createMockService();
+
+			// Enable N8N_LOCAL mode
+			globalConfig.license.isLocal = true;
+
+			// Mock license to return true for SHOW_NON_PROD_BANNER
+			license.isLicensed.mockReturnValue(true);
+
+			const settings = await service.getSettings();
+
+			// Should be false because we're in local mode
+			expect(settings.enterprise.showNonProdBanner).toBe(false);
+		});
+
+		it('should set showNonProdBanner to true when license has the feature and not in local mode', async () => {
+			const { service, license, globalConfig } = createMockService();
+
+			// Ensure N8N_LOCAL mode is disabled
+			globalConfig.license.isLocal = false;
+
+			// Mock license to return true for SHOW_NON_PROD_BANNER
+			license.isLicensed.mockReturnValue(true);
+
+			const settings = await service.getSettings();
+
+			// Should be true because license has the feature and not in local mode
+			expect(settings.enterprise.showNonProdBanner).toBe(true);
+		});
+
+		it('should set showNonProdBanner to false when license does not have the feature', async () => {
+			const { service, license, globalConfig } = createMockService();
+
+			// Ensure N8N_LOCAL mode is disabled
+			globalConfig.license.isLocal = false;
+
+			// Mock license to return false for SHOW_NON_PROD_BANNER
+			license.isLicensed.mockReturnValue(false);
+
+			const settings = await service.getSettings();
+
+			// Should be false because license doesn't have the feature
+			expect(settings.enterprise.showNonProdBanner).toBe(false);
 		});
 	});
 });

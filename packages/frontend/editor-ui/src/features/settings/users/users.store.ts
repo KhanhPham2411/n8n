@@ -381,6 +381,15 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 
 	const showPersonalizationSurvey = async () => {
 		const surveyEnabled = settingsStore.isPersonalizationSurveyEnabled;
+		console.log('[DEBUG] showPersonalizationSurvey called:', {
+			surveyEnabled,
+			hasCurrentUser: !!currentUser.value,
+			hasAnswers: currentUser.value?.personalizationAnswers,
+			settingsValue: {
+				personalizationSurveyEnabled: settingsStore.settings.personalizationSurveyEnabled,
+				telemetryEnabled: settingsStore.settings.telemetry?.enabled,
+			},
+		});
 		if (surveyEnabled && currentUser.value && !currentUser.value.personalizationAnswers) {
 			uiStore.openModal(PERSONALIZATION_MODAL_KEY);
 		}

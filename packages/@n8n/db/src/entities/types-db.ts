@@ -388,6 +388,7 @@ export type APIRequest<
 
 export type AuthenticationInformation = {
 	usedMfa: boolean;
+	mfaEnrollmentRequired?: boolean;
 };
 
 export type AuthenticatedRequest<

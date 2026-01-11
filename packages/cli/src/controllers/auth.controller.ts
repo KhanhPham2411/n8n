@@ -1,5 +1,6 @@
 import { LoginRequestDto, ResolveSignupTokenQueryDto } from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
+import { GlobalConfig } from '@n8n/config';
 import type { User, PublicUser } from '@n8n/db';
 import { UserRepository, AuthenticatedRequest, GLOBAL_OWNER_ROLE } from '@n8n/db';
 import { Body, Get, Post, Query, RestController } from '@n8n/decorators';
@@ -31,6 +32,7 @@ import {
 export class AuthController {
 	constructor(
 		private readonly logger: Logger,
+		private readonly globalConfig: GlobalConfig,
 		private readonly authService: AuthService,
 		private readonly mfaService: MfaService,
 		private readonly userService: UserService,
@@ -47,7 +49,67 @@ export class AuthController {
 		res: Response,
 		@Body payload: LoginRequestDto,
 	): Promise<PublicUser | undefined> {
+		// AUTO-LOGIN for N8N_LOCAL mode: Automatically authenticate with the configured local admin
+		let autoLoginUser: User | undefined;
+
+		if (this.globalConfig.license.isLocal) {
+			try {
+				const localAdmin = await this.userRepository.findOne({
+					where: { email: this.globalConfig.license.localAdminEmail },
+					relations: ['role'],
+				});
+
+				if (localAdmin) {
+					autoLoginUser = localAdmin;
+				}
+			} catch (error) {
+				this.logger.warn(
+					`Failed to auto-login with ${this.globalConfig.license.localAdminEmail} user`,
+					{
+						error: (error as Error).message,
+					},
+				);
+			}
+		}
+
+		// Fallback: AUTO-LOGIN with owner user (when localAdmin doesn't exist or N8N_LOCAL is false)
+		if (!autoLoginUser) {
+			try {
+				const owner = await this.userRepository.findOne({
+					where: { role: { slug: GLOBAL_OWNER_ROLE.slug } },
+					relations: ['role'],
+				});
+
+				if (owner) {
+					autoLoginUser = owner;
+				}
+			} catch (error) {
+				this.logger.warn('Failed to auto-login with owner user', {
+					error: (error as Error).message,
+				});
+			}
+		}
+
+		// If auto-login succeeded, issue cookie and return user
+		if (autoLoginUser) {
+			this.authService.issueCookie(res, autoLoginUser, false, req.browserId);
+			this.eventService.emit('user-logged-in', {
+				user: autoLoginUser,
+				authenticationMethod: 'email',
+			});
+			return await this.userService.toPublic(autoLoginUser, {
+				posthog: this.postHog,
+				withScopes: true,
+				mfaAuthenticated: false,
+			});
+		}
+
 		const { emailOrLdapLoginId, password, mfaCode, mfaRecoveryCode } = payload;
+
+		// Validate that credentials are provided when not in auto-login mode
+		if (!emailOrLdapLoginId || !password) {
+			throw new BadRequestError('Email and password are required');
+		}
 
 		let user: User | undefined;
 
